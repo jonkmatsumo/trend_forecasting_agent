@@ -1,6 +1,19 @@
+import pip
+
+def install(package):
+    if hasattr(pip, 'main'):
+        pip.main(['install', package])
+    else:
+        pip._internal.main(['install', package])
+
+
+install('pandas')
+install('pytrends')
+
 import argparse
 import pandas as pd
-from pytrend.request import TrendReq
+from pytrends.request import TrendReq
+
 
 def main():
     # get arguments from user
@@ -8,10 +21,15 @@ def main():
 
     # process input keywords
     keywords = read_file(args.input_path)
+    print("Input Keywords:")
+    print(keywords)
 
     # get Google Trend info for each keyword, write to CSV
     trend_df = get_trends(keywords)
     trend_df.to_csv(args.output_path)
+    print("\nFinal Result: ")
+    print(trend_df.head())
+
     return 0
 
 
