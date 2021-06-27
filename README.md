@@ -1,0 +1,2 @@
+# pytrendreader
+Pytrend Reader
