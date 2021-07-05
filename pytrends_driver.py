@@ -13,6 +13,7 @@ install('pytrends')
 import argparse
 import pandas as pd
 from pytrends.request import TrendReq
+from util import lines_to_word_map, parse_args, read_file, write_csv, write_json
 
 
 def main():
@@ -20,31 +21,53 @@ def main():
     args = parse_args()
 
     # process input keywords
-    keywords = read_file(args.input_path)
-    print("Input Keywords:")
-    print(keywords)
+    lines = read_file(args.input_path)
+    word_map = lines_to_word_map(lines)
+    print(word_map)
 
-    # get Google Trend info for each keyword, write to CSV
-    trend_df = get_trends(keywords)
-    trend_df.to_csv(args.output_path)
-    print("\nFinal Result: ")
-    print(trend_df.head())
+    # save word map to JSON
+    output_stem = args.output_path.split('.')
+    output_json = output_stem[0] + ".json"
+    write_json(word_map, output_json)
+
+    # get Google Trend info for each keyword
+    iot_dict = trends_for_word_map(word_map)
+
+    # flatten trends for different categories into single list of tuples
+    interest_tuples = interest_at_timestamp(iot_dict)
+
+    # convert list of tuples into Pandas dataframe, and write to CSV
+    interest_df = interest_tuples_to_df(interest_tuples)
+    write_csv(interest_df, args.output_path)
 
     return 0
 
 
-def parse_args():
-    arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument("input_path", help="path to read in keywords from")
-    arg_parser.add_argument("output_path", help="path to write trend results to")
-    return arg_parser.parse_args()
+def trends_for_word_map(word_map):
+    iot_dict = {}
+    for category, keywords in word_map.items():
+        print("Category: " + category)
+        print("Keyword(s): " + keywords)
+        iot_df = get_trends(keywords)
+        iot_dict[category] = iot_df
+    return iot_dict
 
 
-def read_file(filename):
-    file = open(filename, 'r')
-    lines = file.read().splitlines()
-    file.close()
-    return lines
+def interest_at_timestamp(iot_dict):
+    interest_tuples = []
+    for category, iot_df in iot_dict.items():
+        iot_df.drop(columns=['isPartial'], axis=1, inplace=True)
+        for rowIndex, row in iot_df.iterrows():
+            for colIndex, value in row.items():
+                interest_tuple = (rowIndex, colIndex, category, value)
+                interest_tuples.append(interest_tuple)
+    return interest_tuples
+
+
+def interest_tuples_to_df(interest_tuples):
+    interest_df = pd.DataFrame(interest_tuples, columns=['Date','Keyword','Category','Interest'])
+    interest_df.sort_values(by=['Keyword', 'Date', 'Category'], inplace=True)
+    return interest_df
 
 
 def get_trends(keywords):
