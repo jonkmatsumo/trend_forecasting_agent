@@ -7,6 +7,6 @@ Keyword:Keyword2
 ...
 ```
 with a maximum of 5 keywords per category. The application then accesses Google Trend historical interest over time using the Pytrends API, and organizes the collected data
-into a Pandas DataFrame which is then stored as a CSV file. This file is used as the input dataset to a Tensorflow LSTM model (*note: currently in progress*) after which the forecasts are displayed back to the user.
+into a Pandas DataFrame which is then stored as a CSV file. This file is used as the input dataset to a LSTM model built in Keras after which the forecasts are displayed back to the user.
 
 The front-end of this application uses the Seaborn library along with Matplotlib.
