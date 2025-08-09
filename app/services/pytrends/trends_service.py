@@ -10,7 +10,7 @@ from typing import List, Dict, Any, Optional
 from pytrends.request import TrendReq
 from datetime import datetime
 
-from app.models.trend_model import TrendData, TrendsRequest, TrendsResponse
+from app.models.pytrends.pytrend_model import TrendData, TrendsRequest, TrendsResponse
 from app.utils.validators import InputValidator
 from app.utils.error_handlers import TrendsAPIError, ValidationError, RateLimitError
 

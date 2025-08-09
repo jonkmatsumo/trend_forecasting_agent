@@ -6,7 +6,7 @@ import re
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from app.utils.error_handlers import ValidationError, APIError
-from app.models.trend_model import TrendsRequest, TrendData
+from app.models.pytrends.pytrend_model import TrendsRequest, TrendData
 from app.models.prediction_model import TrainingRequest, PredictionRequest, ModelMetadata
 
 

@@ -12,11 +12,11 @@ from darts import TimeSeries
 # Note: Darts doesn't have a direct ProbabilisticForecastingModel base class
 # We'll use a different approach to check for probabilistic models
 
-from app.models.darts_models import (
+from app.models.darts.darts_models import (
     ForecastResult, ModelEvaluationMetrics, ModelType
 )
 from app.models.prediction_model import PredictionResult, ModelMetadata
-from app.services.darts_model_service import DartsModelService
+from app.services.darts.training_service import DartsModelService
 from app.utils.error_handlers import ModelError, ValidationError
 
 

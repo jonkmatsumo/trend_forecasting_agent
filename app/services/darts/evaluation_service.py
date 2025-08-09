@@ -12,11 +12,11 @@ from darts import TimeSeries
 from darts.metrics import mae, rmse, mape, smape, mase
 from darts.utils.statistics import check_seasonality, plot_acf, plot_pacf
 
-from app.models.darts_models import (
+from app.models.darts.darts_models import (
     ModelEvaluationMetrics, ModelType, ModelTrainingRequest
 )
 from app.models.prediction_model import ModelMetadata
-from app.services.darts_model_service import DartsModelService
+from app.services.darts.training_service import DartsModelService
 from app.utils.error_handlers import ModelError, ValidationError
 
 

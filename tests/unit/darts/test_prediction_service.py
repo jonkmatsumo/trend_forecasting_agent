@@ -11,9 +11,9 @@ from pathlib import Path
 import json
 import numpy as np
 
-from app.services.darts_prediction_service import DartsPredictionService
-from app.services.darts_model_service import DartsModelService
-from app.models.darts_models import (
+from app.services.darts.prediction_service import DartsPredictionService
+from app.services.darts.training_service import DartsModelService
+from app.models.darts.darts_models import (
     ForecastResult, ModelEvaluationMetrics, ModelType
 )
 from app.models.prediction_model import ModelMetadata
@@ -103,8 +103,8 @@ class TestDartsPredictionService:
         prediction_service.model_service.get_model_metadata.assert_called_with("test_model_123")
         prediction_service.model_service.get_evaluation_metrics.assert_called_with("test_model_123")
     
-    @patch('app.services.darts_prediction_service.DartsPredictionService._extract_confidence_intervals')
-    @patch('app.services.darts_prediction_service.DartsPredictionService._generate_forecast_dates')
+    @patch('app.services.darts.prediction_service.DartsPredictionService._extract_confidence_intervals')
+    @patch('app.services.darts.prediction_service.DartsPredictionService._generate_forecast_dates')
     def test_generate_forecast_with_confidence_intervals(self, mock_gen_dates, mock_extract_ci,
                                                        prediction_service, sample_metadata, 
                                                        sample_evaluation_metrics):
@@ -206,7 +206,7 @@ class TestDartsPredictionService:
         # Verify first date is after training date
         assert dates[0] > training_date
     
-    @patch('app.services.darts_prediction_service.DartsPredictionService.generate_forecast')
+    @patch('app.services.darts.prediction_service.DartsPredictionService.generate_forecast')
     def test_compare_models_success(self, mock_generate_forecast, prediction_service,
                                   sample_metadata, sample_evaluation_metrics):
         """Test successful model comparison."""
@@ -315,8 +315,8 @@ class TestDartsPredictionService:
         assert summary["best_model_by_mape"] == "model_1"
         assert summary["best_model_by_directional_accuracy"] == "model_1"
     
-    @patch('app.services.darts_prediction_service.DartsPredictionService._calculate_forecast_accuracy')
-    @patch('app.services.darts_prediction_service.DartsPredictionService.generate_forecast')
+    @patch('app.services.darts.prediction_service.DartsPredictionService._calculate_forecast_accuracy')
+    @patch('app.services.darts.prediction_service.DartsPredictionService.generate_forecast')
     def test_get_forecast_accuracy_report(self, mock_generate_forecast, mock_calc_accuracy, prediction_service,
                                         sample_metadata, sample_evaluation_metrics):
         """Test forecast accuracy report generation."""
@@ -476,7 +476,7 @@ class TestDartsPredictionService:
         assert isinstance(recommendations, list)
         assert len(recommendations) > 0
     
-    @patch('app.services.darts_prediction_service.DartsPredictionService.generate_forecast')
+    @patch('app.services.darts.prediction_service.DartsPredictionService.generate_forecast')
     def test_compare_models_with_confidence_intervals(self, mock_generate_forecast, prediction_service,
                                                     sample_metadata):
         """Test model comparison with confidence intervals."""

@@ -11,9 +11,9 @@ from pathlib import Path
 import json
 import numpy as np
 
-from app.services.darts_evaluation_service import DartsEvaluationService
-from app.services.darts_model_service import DartsModelService
-from app.models.darts_models import (
+from app.services.darts.evaluation_service import DartsEvaluationService
+from app.services.darts.training_service import DartsModelService
+from app.models.darts.darts_models import (
     ModelEvaluationMetrics, ModelType, ModelTrainingRequest
 )
 from app.models.prediction_model import ModelMetadata
@@ -103,10 +103,10 @@ class TestDartsEvaluationService:
         assert service.model_service == model_service
         assert service.logger is not None
     
-    @patch('app.services.darts_evaluation_service.DartsEvaluationService._load_training_request')
-    @patch('app.services.darts_evaluation_service.DartsEvaluationService._generate_performance_benchmarks')
-    @patch('app.services.darts_evaluation_service.DartsEvaluationService._perform_detailed_analysis')
-    @patch('app.services.darts_evaluation_service.DartsEvaluationService._generate_evaluation_recommendations')
+    @patch('app.services.darts.evaluation_service.DartsEvaluationService._load_training_request')
+    @patch('app.services.darts.evaluation_service.DartsEvaluationService._generate_performance_benchmarks')
+    @patch('app.services.darts.evaluation_service.DartsEvaluationService._perform_detailed_analysis')
+    @patch('app.services.darts.evaluation_service.DartsEvaluationService._generate_evaluation_recommendations')
     def test_evaluate_model_comprehensive_success(self, mock_gen_rec, mock_perf_bench, 
                                                  mock_detailed_analysis, mock_load_request,
                                                  evaluation_service, sample_metadata, 
@@ -518,9 +518,9 @@ class TestDartsEvaluationService:
         assert len(recommendations) > 0
         assert all(isinstance(rec, str) for rec in recommendations)
     
-    @patch('app.services.darts_evaluation_service.DartsEvaluationService._compare_models_benchmark')
-    @patch('app.services.darts_evaluation_service.DartsEvaluationService._generate_benchmark_rankings')
-    @patch('app.services.darts_evaluation_service.DartsEvaluationService._generate_benchmark_recommendations')
+    @patch('app.services.darts.evaluation_service.DartsEvaluationService._compare_models_benchmark')
+    @patch('app.services.darts.evaluation_service.DartsEvaluationService._generate_benchmark_rankings')
+    @patch('app.services.darts.evaluation_service.DartsEvaluationService._generate_benchmark_recommendations')
     def test_benchmark_models(self, mock_gen_rec, mock_gen_rank, mock_compare,
                              evaluation_service, sample_metadata, sample_evaluation_metrics):
         """Test model benchmarking."""

@@ -24,7 +24,7 @@ from darts.metrics import mae, rmse, mape
 from darts.utils.statistics import check_seasonality
 from sklearn.preprocessing import MinMaxScaler
 
-from app.models.darts_models import (
+from app.models.darts.darts_models import (
     ModelType, DartsTimeSeriesData, ModelTrainingRequest,
     ModelEvaluationMetrics, ForecastResult, DEFAULT_MODEL_PARAMETERS,
     generate_model_id

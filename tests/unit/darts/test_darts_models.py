@@ -6,7 +6,7 @@ import pytest
 from datetime import datetime, timedelta
 from typing import List
 
-from app.models.darts_models import (
+from app.models.darts.darts_models import (
     ModelType, DartsTimeSeriesData, ModelTrainingRequest, 
     ModelEvaluationMetrics, ForecastResult, DartsModelValidator,
     generate_model_id, DEFAULT_MODEL_PARAMETERS

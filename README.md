@@ -2,6 +2,45 @@
 
 This application creates quantile forecasts for the popularity of a series of keywords using state-of-the-art time series forecasting models from the Python Darts library, including LSTM, TCN, Transformer, Prophet, ARIMA, and more.
 
+## Architecture Overview
+
+The application is organized by major dependencies for better maintainability:
+
+### Core Structure
+```
+app/
+├── models/
+│   ├── darts/           # Darts-specific data models
+│   │   ├── darts_models.py
+│   │   └── training_request.py
+│   ├── pytrends/        # Google Trends data models
+│   │   └── pytrend_model.py
+│   └── prediction_model.py  # Legacy models (to be removed)
+├── services/
+│   ├── darts/           # Darts forecasting services
+│   │   ├── training_service.py
+│   │   ├── evaluation_service.py
+│   │   └── prediction_service.py
+│   ├── pytrends/        # Google Trends services
+│   │   └── trends_service.py
+│   ├── model_service.py     # Legacy services (to be removed)
+│   └── prediction_service.py # Legacy services (to be removed)
+└── utils/
+    ├── error_handlers.py
+    └── validators.py
+```
+
+### Test Structure
+```
+tests/
+├── unit/
+│   ├── darts/           # Darts service tests
+│   ├── pytrends/        # Google Trends tests
+│   └── [other tests]
+└── integration/
+    └── test_trends_api.py
+```
+
 ## New Darts-Based Architecture
 
 The application has been enhanced with the Python Darts library for robust time series forecasting:
@@ -94,6 +133,8 @@ curl -X POST http://localhost:5000/api/models/{model_id}/predict \
 
 - **Run tests:** `pytest`
 - **Run unit tests:** `python -m pytest tests/unit/ -v`
+- **Run darts tests:** `python -m pytest tests/unit/darts/ -v`
+- **Run pytrends tests:** `python -m pytest tests/unit/pytrends/ -v`
 - **Run integration tests:** `python -m pytest tests/integration/ -v`
 - **Project structure:** See the implementation plan for detailed architecture
 - **API specification:** See the API endpoints documentation
@@ -145,13 +186,21 @@ curl -X POST http://localhost:5000/api/models/{model_id}/predict \
 ## Current Status
 
 ✅ **Phase 1 Complete**: Foundation setup with Darts data models and backward compatibility
-🔄 **Phase 2**: Core Darts services implementation (in progress)
-⏳ **Phase 3**: API endpoints and integration testing
-⏳ **Phase 4**: Advanced features and optimization
+✅ **Phase 2 Complete**: Core Darts services implementation with comprehensive testing (223 tests passing)
+🔄 **Phase 3**: Refactoring - Organizing code by major dependencies (in progress)
+⏳ **Phase 4**: API endpoints and integration testing
+⏳ **Phase 5**: Cleanup and optimization
 
 ## Next Steps
 
-1. **Continue Implementation**: Follow the implementation checklist for remaining phases
-2. **Test Darts Models**: Verify all model types work correctly
-3. **Integration Testing**: Ensure API endpoints function properly
-4. **Deploy and Monitor**: Deploy with monitoring for performance and accuracy
+1. **Complete Refactoring**: Follow the refactoring checklist to organize by dependencies
+2. **Implement API Endpoints**: Add model training and prediction endpoints
+3. **Integration Testing**: Ensure all components work together properly
+4. **Cleanup**: Remove legacy files and optimize the codebase
+
+## Documentation
+
+- **Integration Plan**: `docs/INTEGRATION_PLAN.md` - Overall project phases and goals
+- **Refactoring Checklist**: `docs/REFACTORING_CHECKLIST.md` - Step-by-step refactoring guide
+- **Darts Data Models**: `docs/DARTS_DATA_MODELS.md` - Detailed model specifications
+- **API Endpoints**: `docs/DARTS_API_ENDPOINTS.md` - Complete API documentation

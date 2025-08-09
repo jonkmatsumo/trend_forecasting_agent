@@ -4,7 +4,7 @@ Unit tests for data models
 
 import pytest
 from datetime import datetime
-from app.models.trend_model import TrendData, TrendsRequest, TrendsResponse
+from app.models.pytrends.pytrend_model import TrendData, TrendsRequest, TrendsResponse
 from app.models.prediction_model import ModelMetadata, PredictionResult, TrainingRequest, PredictionRequest
 from app.utils.validators import InputValidator
 from app.utils.error_handlers import ValidationError

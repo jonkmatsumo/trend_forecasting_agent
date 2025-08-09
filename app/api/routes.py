@@ -13,7 +13,7 @@ from app.utils.error_handlers import (
     ValidationError, TrendsAPIError, ModelError, NotFoundError, 
     RateLimitError, APIError
 )
-from app.models.trend_model import TrendsRequest, TrendsResponse
+from app.models.pytrends.pytrend_model import TrendsRequest, TrendsResponse
 from app.models.prediction_model import TrainingRequest, PredictionRequest
 
 # Create blueprint
@@ -72,7 +72,7 @@ def get_trends():
         trends_request = validator.validate_trends_request(data)
         
         # Initialize service lazily
-        from app.services.trends_service import TrendsService
+        from app.services.pytrends.trends_service import TrendsService
         trends_service = TrendsService()
         
         # Fetch trends data
@@ -335,7 +335,7 @@ def clear_trends_cache():
     """
     try:
         # Initialize service lazily
-        from app.services.trends_service import TrendsService
+        from app.services.pytrends.trends_service import TrendsService
         trends_service = TrendsService()
         
         # Clear cache
@@ -364,7 +364,7 @@ def get_trends_cache_stats():
     """
     try:
         # Initialize service lazily
-        from app.services.trends_service import TrendsService
+        from app.services.pytrends.trends_service import TrendsService
         trends_service = TrendsService()
         
         # Get cache stats
@@ -427,7 +427,7 @@ def get_trends_summary():
         validator.validate_keywords(keywords)
         
         # Initialize service lazily
-        from app.services.trends_service import TrendsService
+        from app.services.pytrends.trends_service import TrendsService
         trends_service = TrendsService()
         
         # Get summary
@@ -508,7 +508,7 @@ def compare_trends():
         validator.validate_keywords(keywords)
         
         # Initialize service lazily
-        from app.services.trends_service import TrendsService
+        from app.services.pytrends.trends_service import TrendsService
         trends_service = TrendsService()
         
         # Get comparison

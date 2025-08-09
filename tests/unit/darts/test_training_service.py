@@ -12,8 +12,8 @@ import json
 import pickle
 import numpy as np
 
-from app.services.darts_model_service import DartsModelService
-from app.models.darts_models import (
+from app.services.darts.training_service import DartsModelService
+from app.models.darts.darts_models import (
     ModelTrainingRequest, ModelEvaluationMetrics, ModelType
 )
 from app.models.prediction_model import ModelMetadata
@@ -157,7 +157,7 @@ class TestDartsModelService:
         assert len(train_series) == expected_train_length
         assert len(test_series) == expected_test_length
 
-    @patch('app.services.darts_model_service.RNNModel')
+    @patch('app.services.darts.training_service.RNNModel')
     def test_create_model_lstm(self, mock_rnn, model_service, sample_training_request):
         """Test creating LSTM model."""
         mock_model = Mock()
@@ -179,9 +179,9 @@ class TestDartsModelService:
         with pytest.raises(ModelError, match="Failed to create model unsupported_model"):
             model_service._create_model("unsupported_model", {})
     
-    @patch('app.services.darts_model_service.mae')
-    @patch('app.services.darts_model_service.rmse')
-    @patch('app.services.darts_model_service.mape')
+    @patch('app.services.darts.training_service.mae')
+    @patch('app.services.darts.training_service.rmse')
+    @patch('app.services.darts.training_service.mape')
     def test_evaluate_model(self, mock_mape, mock_rmse, mock_mae, model_service, sample_training_request):
         """Test model evaluation."""
         # Setup mocks
@@ -418,7 +418,7 @@ class TestDartsModelService:
         result = model_service.delete_model("test_nonexistent")
         assert result is False
     
-    @patch('app.services.darts_model_service.mlflow')
+    @patch('app.services.darts.training_service.mlflow')
     def test_log_to_mlflow(self, mock_mlflow, model_service, sample_training_request, temp_models_dir):
         """Test MLflow logging."""
         model_id = "test_model_123"
@@ -447,7 +447,7 @@ class TestDartsModelService:
         mock_mlflow.set_experiment.assert_called_once()
         mock_mlflow.start_run.assert_called_once()
     
-    @patch('app.services.darts_model_service.mlflow')
+    @patch('app.services.darts.training_service.mlflow')
     def test_log_to_mlflow_error_handling(self, mock_mlflow, model_service, sample_training_request):
         """Test MLflow logging error handling."""
         mock_mlflow.set_experiment.side_effect = Exception("MLflow error")

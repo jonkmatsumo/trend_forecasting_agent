@@ -8,8 +8,8 @@ import pandas as pd
 from datetime import datetime, timedelta
 import time
 
-from app.services.trends_service import TrendsService
-from app.models.trend_model import TrendsRequest, TrendData, TrendsResponse
+from app.services.pytrends.trends_service import TrendsService
+from app.models.pytrends.pytrend_model import TrendsRequest, TrendData, TrendsResponse
 from app.utils.error_handlers import TrendsAPIError, RateLimitError, ValidationError
 
 
@@ -94,7 +94,7 @@ class TestTrendsService:
         assert "Rate limit exceeded" in str(exc_info.value)
         assert exc_info.value.details['retry_after'] == 60
     
-    @patch('app.services.trends_service.TrendReq')
+    @patch('app.services.pytrends.trends_service.TrendReq')
     def test_fetch_from_google_trends_success(self, mock_trend_req, trends_service, 
                                             sample_trends_request, mock_interest_data):
         """Test successful Google Trends data fetching"""
@@ -122,7 +122,7 @@ class TestTrendsService:
         )
         mock_trend.interest_over_time.assert_called_once()
     
-    @patch('app.services.trends_service.TrendReq')
+    @patch('app.services.pytrends.trends_service.TrendReq')
     def test_fetch_from_google_trends_empty_data(self, mock_trend_req, trends_service, 
                                                 sample_trends_request):
         """Test Google Trends API returning empty data"""
@@ -137,7 +137,7 @@ class TestTrendsService:
         
         assert "No data returned from Google Trends API" in str(exc_info.value)
     
-    @patch('app.services.trends_service.TrendReq')
+    @patch('app.services.pytrends.trends_service.TrendReq')
     def test_fetch_from_google_trends_api_error(self, mock_trend_req, trends_service, 
                                                sample_trends_request):
         """Test Google Trends API error handling"""
@@ -152,7 +152,7 @@ class TestTrendsService:
         
         assert "Google Trends API request failed" in str(exc_info.value)
     
-    @patch('app.services.trends_service.TrendReq')
+    @patch('app.services.pytrends.trends_service.TrendReq')
     def test_fetch_trends_data_success(self, mock_trend_req, trends_service, 
                                       sample_trends_request, mock_interest_data):
         """Test successful trends data fetching with caching"""
@@ -174,7 +174,7 @@ class TestTrendsService:
         cache_key = trends_service._generate_cache_key(sample_trends_request)
         assert cache_key in trends_service._cache
     
-    @patch('app.services.trends_service.TrendReq')
+    @patch('app.services.pytrends.trends_service.TrendReq')
     def test_fetch_trends_data_cached(self, mock_trend_req, trends_service, 
                                      sample_trends_request, mock_interest_data):
         """Test trends data fetching with cache hit"""

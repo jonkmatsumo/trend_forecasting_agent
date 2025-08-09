@@ -8,7 +8,7 @@ from unittest.mock import patch, Mock
 from datetime import datetime
 
 from app import create_app
-from app.models.trend_model import TrendData, TrendsResponse
+from app.models.pytrends.pytrend_model import TrendData, TrendsResponse
 
 
 class TestTrendsAPI:
@@ -29,7 +29,7 @@ class TestTrendsAPI:
     @pytest.fixture
     def mock_trends_service(self):
         """Mock trends service responses"""
-        with patch('app.services.trends_service.TrendsService') as mock_service:
+        with patch('app.services.pytrends.trends_service.TrendsService') as mock_service:
             # Mock successful trends response
             mock_trend_data = TrendData(
                 keyword="python",
