@@ -13,10 +13,7 @@ from app.services.prediction_service import PredictionService
 # Create blueprint
 api_bp = Blueprint('api', __name__)
 
-# Initialize services
-trends_service = TrendsService()
-model_service = ModelService()
-prediction_service = PredictionService()
+# Services will be initialized lazily when needed
 
 
 @api_bp.route('/health', methods=['GET'])
@@ -37,6 +34,9 @@ def get_trends():
     Get Google Trends data for a keyword
     """
     try:
+        # Initialize service within app context
+        trends_service = TrendsService()
+        
         # Validate request
         data = request.get_json()
         if not data:
@@ -82,6 +82,9 @@ def train_model():
     Train a new LSTM model with provided time series data
     """
     try:
+        # Initialize service within app context
+        model_service = ModelService()
+        
         # Validate request
         data = request.get_json()
         if not data:
@@ -128,6 +131,9 @@ def generate_prediction(model_id):
     Generate prediction using a trained model
     """
     try:
+        # Initialize service within app context
+        prediction_service = PredictionService()
+        
         # Validate request
         data = request.get_json() or {}
         
@@ -168,6 +174,9 @@ def get_model_info(model_id):
     Get information about a specific model
     """
     try:
+        # Initialize service within app context
+        model_service = ModelService()
+        
         model_info = model_service.get_model_info(model_id)
         
         if not model_info:
@@ -195,6 +204,9 @@ def list_models():
     List all available models
     """
     try:
+        # Initialize service within app context
+        model_service = ModelService()
+        
         models = model_service.list_models()
         
         return jsonify({
