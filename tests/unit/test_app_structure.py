@@ -52,8 +52,9 @@ def test_404_error_handler(client):
     assert response.status_code == 404
     
     data = response.get_json()
-    assert data['error'] == 'Not Found'
-    assert data['status_code'] == 404
+    assert data['status'] == 'error'
+    assert data['error_code'] == 'HTTP_ERROR'
+    assert 'not found' in data['message'].lower()
 
 
 def test_app_configuration(app):
