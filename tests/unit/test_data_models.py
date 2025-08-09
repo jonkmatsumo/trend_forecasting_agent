@@ -5,7 +5,7 @@ Unit tests for data models
 import pytest
 from datetime import datetime
 from app.models.pytrends.pytrend_model import TrendData, TrendsRequest, TrendsResponse
-from app.models.prediction_model import ModelMetadata, PredictionResult, TrainingRequest, PredictionRequest
+from app.models.darts.darts_models import ModelTrainingRequest, ModelEvaluationMetrics
 from app.utils.validators import InputValidator
 from app.utils.error_handlers import ValidationError
 
@@ -115,115 +115,80 @@ class TestTrendsRequest:
             TrendsRequest(keywords=[long_keyword])
 
 
-class TestModelMetadata:
-    """Test ModelMetadata model"""
+class TestModelEvaluationMetrics:
+    """Test ModelEvaluationMetrics model"""
     
-    def test_valid_model_metadata(self):
-        """Test creating valid ModelMetadata"""
-        metadata = ModelMetadata(
+    def test_valid_model_evaluation_metrics(self):
+        """Test creating valid ModelEvaluationMetrics"""
+        from app.models.darts.darts_models import ModelType
+        
+        metrics = ModelEvaluationMetrics(
             model_id="test-id",
             keyword="python",
-            training_date=datetime.utcnow(),
-            parameters={"epochs": 100},
-            metrics={"loss": 0.1}
+            model_type=ModelType.LSTM,
+            train_mae=0.1,
+            train_rmse=0.2,
+            train_mape=0.3,
+            test_mae=0.15,
+            test_rmse=0.25,
+            test_mape=0.35,
+            directional_accuracy=0.8,
+            coverage_95=0.95,
+            train_samples=100,
+            test_samples=25,
+            total_samples=125,
+            training_time_seconds=10.5
         )
         
-        assert metadata.model_id == "test-id"
-        assert metadata.keyword == "python"
-        assert metadata.status == "completed"
+        assert metrics.model_id == "test-id"
+        assert metrics.keyword == "python"
+        assert metrics.directional_accuracy == 0.8
+
+
+class TestModelTrainingRequest:
+    """Test ModelTrainingRequest model"""
     
-    def test_auto_generated_id(self):
-        """Test ModelMetadata with auto-generated ID"""
-        metadata = ModelMetadata(
-            keyword="python",
-            training_date=datetime.utcnow(),
-            parameters={},
-            metrics={}
-        )
+    def test_valid_model_training_request(self):
+        """Test creating valid ModelTrainingRequest"""
+        from app.models.darts.darts_models import ModelType
         
-        assert metadata.model_id is not None
-        assert len(metadata.model_id) > 0
-    
-    def test_invalid_status(self):
-        """Test ModelMetadata with invalid status"""
-        with pytest.raises(ValueError, match="Status must be one of"):
-            ModelMetadata(
-                keyword="python",
-                training_date=datetime.utcnow(),
-                parameters={},
-                metrics={},
-                status="invalid"
-            )
-
-
-class TestTrainingRequest:
-    """Test TrainingRequest model"""
-    
-    def test_valid_training_request(self):
-        """Test creating valid TrainingRequest"""
-        request = TrainingRequest(
+        request = ModelTrainingRequest(
             keyword="python",
-            time_series_data=[50.0] * 20,  # 20 data points
-            model_params={"epochs": 100}
+            time_series_data=[50.0] * 52,  # 52 data points (minimum for Darts)
+            dates=[f"2023-{i:02d}-01" for i in range(1, 53)],
+            model_type=ModelType.LSTM
         )
         
         assert request.keyword == "python"
-        assert len(request.time_series_data) == 20
-        assert request.model_params["epochs"] == 100
+        assert len(request.time_series_data) == 52
+        assert request.model_type == ModelType.LSTM
     
     def test_empty_keyword(self):
-        """Test TrainingRequest with empty keyword"""
+        """Test ModelTrainingRequest with empty keyword"""
+        from app.models.darts.darts_models import ModelType
+        
         with pytest.raises(ValueError, match="Keyword cannot be empty"):
-            TrainingRequest(
+            ModelTrainingRequest(
                 keyword="",
-                time_series_data=[50.0] * 20,
-                model_params={}
+                time_series_data=[50.0] * 52,
+                dates=[f"2023-{i:02d}-01" for i in range(1, 53)],
+                model_type=ModelType.LSTM
             )
     
     def test_insufficient_data_points(self):
-        """Test TrainingRequest with insufficient data points"""
-        with pytest.raises(ValueError, match="At least 10 data points required for training"):
-            TrainingRequest(
-                keyword="python",
-                time_series_data=[50.0] * 5,
-                model_params={}
-            )
-    
-    def test_too_many_data_points(self):
-        """Test TrainingRequest with too many data points"""
-        with pytest.raises(ValueError, match="Maximum 10,000 data points allowed"):
-            TrainingRequest(
-                keyword="python",
-                time_series_data=[50.0] * 15000,
-                model_params={}
-            )
-
-
-class TestPredictionRequest:
-    """Test PredictionRequest model"""
-    
-    def test_valid_prediction_request(self):
-        """Test creating valid PredictionRequest"""
-        request = PredictionRequest(
-            model_id="test-id",
-            prediction_weeks=25
-        )
+        """Test ModelTrainingRequest with insufficient data points"""
+        from app.models.darts.darts_models import ModelType
         
-        assert request.model_id == "test-id"
-        assert request.prediction_weeks == 25
-    
-    def test_empty_model_id(self):
-        """Test PredictionRequest with empty model ID"""
-        with pytest.raises(ValueError, match="Model ID cannot be empty"):
-            PredictionRequest(model_id="")
-    
-    def test_invalid_prediction_weeks(self):
-        """Test PredictionRequest with invalid prediction weeks"""
-        with pytest.raises(ValueError, match="Prediction weeks must be between 1 and 100"):
-            PredictionRequest(
-                model_id="test-id",
-                prediction_weeks=0
+        with pytest.raises(ValueError, match="Time series data must have at least 52 data points"):
+            ModelTrainingRequest(
+                keyword="python",
+                time_series_data=[50.0] * 30,
+                dates=[f"2023-{i:02d}-01" for i in range(1, 31)],
+                model_type=ModelType.LSTM
             )
+
+
+
 
 
 class TestInputValidator:
@@ -294,11 +259,13 @@ class TestInputValidator:
         """Test validating valid training request"""
         data = {
             "keyword": "python",
-            "time_series_data": [50.0] * 20,
-            "model_params": {"epochs": 100}
+            "time_series_data": [50.0] * 52,  # Need at least 52 points for Darts
+            "dates": [f"2023-{i:02d}-01" for i in range(1, 53)],  # Required dates
+            "model_type": "lstm",
+            "model_parameters": {"epochs": 100}
         }
         result = InputValidator.validate_training_request(data)
-        assert isinstance(result, TrainingRequest)
+        assert isinstance(result, ModelTrainingRequest)
         assert result.keyword == "python"
     
     def test_validate_prediction_request_valid(self):
@@ -306,5 +273,6 @@ class TestInputValidator:
         data = {"prediction_weeks": 25}
         model_id = "12345678-1234-1234-1234-123456789abc"
         result = InputValidator.validate_prediction_request(data, model_id)
-        assert isinstance(result, PredictionRequest)
-        assert result.prediction_weeks == 25 
+        assert isinstance(result, dict)
+        assert result['prediction_weeks'] == 25
+        assert result['model_id'] == model_id 

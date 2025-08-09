@@ -14,7 +14,7 @@ from app.utils.error_handlers import (
     RateLimitError, APIError
 )
 from app.models.pytrends.pytrend_model import TrendsRequest, TrendsResponse
-from app.models.prediction_model import TrainingRequest, PredictionRequest
+from app.models.darts.darts_models import ModelTrainingRequest, ForecastResult
 
 # Create blueprint
 api_bp = Blueprint('api', __name__)
@@ -133,22 +133,18 @@ def train_model():
         training_request = validator.validate_training_request(data)
         
         # Initialize service lazily
-        from app.services.model_service import ModelService
-        model_service = ModelService()
+        from app.services.darts.training_service import DartsModelService
+        model_service = DartsModelService()
         
         # Train model
-        model_info = model_service.train_model(
-            training_request.time_series_data, 
-            training_request.keyword, 
-            training_request.model_params
-        )
+        model_id, evaluation_metrics = model_service.train_model(training_request)
         
         return jsonify({
             'status': 'success',
             'message': 'Model trained successfully',
-            'model_id': model_info['model_id'],
+            'model_id': model_id,
             'keyword': training_request.keyword,
-            'training_metrics': model_info['metrics']
+            'training_metrics': evaluation_metrics.to_dict()
         }), 201
         
     except ValidationError as e:
@@ -192,21 +188,22 @@ def generate_prediction(model_id):
         prediction_request = validator.validate_prediction_request(data, model_id)
         
         # Initialize service lazily
-        from app.services.prediction_service import PredictionService
-        prediction_service = PredictionService()
+        from app.services.darts.prediction_service import DartsPredictionService
+        from app.services.darts.training_service import DartsModelService
+        model_service = DartsModelService()
+        prediction_service = DartsPredictionService(model_service)
         
         # Generate prediction
-        prediction_result = prediction_service.generate_prediction(
-            prediction_request.model_id, 
-            prediction_request.prediction_weeks
+        prediction_result = prediction_service.generate_forecast(
+            prediction_request['model_id'], 
+            prediction_request['prediction_weeks']
         )
         
         return jsonify({
             'status': 'success',
-            'model_id': prediction_request.model_id,
-            'prediction_weeks': prediction_request.prediction_weeks,
-            'predictions': prediction_result['predictions'],
-            'confidence_intervals': prediction_result.get('confidence_intervals', [])
+            'model_id': prediction_request['model_id'],
+            'prediction_weeks': prediction_request['prediction_weeks'],
+            'result': prediction_result.to_dict()
         }), 200
         
     except ValidationError as e:
@@ -256,8 +253,8 @@ def get_model_info(model_id):
         validated_model_id = validator.validate_model_id(model_id)
         
         # Initialize service lazily
-        from app.services.model_service import ModelService
-        model_service = ModelService()
+        from app.services.darts.training_service import DartsModelService
+        model_service = DartsModelService()
         
         # Get model info
         model_info = model_service.get_model_info(validated_model_id)
@@ -306,8 +303,8 @@ def list_models():
     """
     try:
         # Initialize service lazily
-        from app.services.model_service import ModelService
-        model_service = ModelService()
+        from app.services.darts.training_service import DartsModelService
+        model_service = DartsModelService()
         
         # Get models list
         models = model_service.list_models()

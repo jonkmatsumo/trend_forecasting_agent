@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from app.utils.error_handlers import ValidationError, APIError
 from app.models.pytrends.pytrend_model import TrendsRequest, TrendData
-from app.models.prediction_model import TrainingRequest, PredictionRequest, ModelMetadata
+from app.models.darts.darts_models import ModelTrainingRequest, ModelEvaluationMetrics
 
 
 class InputValidator:
@@ -181,8 +181,8 @@ class InputValidator:
             raise ValidationError(str(e))
     
     @staticmethod
-    def validate_training_request(data: Dict[str, Any]) -> TrainingRequest:
-        """Validate and create TrainingRequest object"""
+    def validate_training_request(data: Dict[str, Any]) -> ModelTrainingRequest:
+        """Validate and create ModelTrainingRequest object"""
         if not isinstance(data, dict):
             raise ValidationError("Request data must be a JSON object")
         
@@ -195,22 +195,48 @@ class InputValidator:
         time_series_data = data.get('time_series_data', [])
         validated_data = InputValidator.validate_time_series_data(time_series_data)
         
+        # Extract and validate dates (required for Darts models)
+        dates = data.get('dates', [])
+        if not dates:
+            raise ValidationError("Dates are required for Darts models", field="dates")
+        if len(dates) != len(validated_data):
+            raise ValidationError("Dates and time_series_data must have same length", field="dates")
+        
+        # Extract and validate model type
+        model_type_str = data.get('model_type', 'lstm')
+        try:
+            from app.models.darts.darts_models import ModelType
+            model_type = ModelType(model_type_str)
+        except ValueError:
+            raise ValidationError(f"Invalid model type: {model_type_str}", field="model_type")
+        
         # Extract and validate model parameters
-        model_params = data.get('model_params', {})
-        validated_params = InputValidator.validate_training_parameters(model_params)
+        model_parameters = data.get('model_parameters', {})
+        if not isinstance(model_parameters, dict):
+            raise ValidationError("Model parameters must be a dictionary", field="model_parameters")
+        
+        # Extract optional parameters with defaults
+        train_test_split = data.get('train_test_split', 0.8)
+        forecast_horizon = data.get('forecast_horizon', 25)
+        validation_strategy = data.get('validation_strategy', 'holdout')
         
         try:
-            return TrainingRequest(
+            return ModelTrainingRequest(
                 keyword=keyword,
                 time_series_data=validated_data,
-                model_params=validated_params
+                dates=dates,
+                model_type=model_type,
+                train_test_split=train_test_split,
+                forecast_horizon=forecast_horizon,
+                model_parameters=model_parameters,
+                validation_strategy=validation_strategy
             )
         except ValueError as e:
             raise ValidationError(str(e))
     
     @staticmethod
-    def validate_prediction_request(data: Dict[str, Any], model_id: str) -> PredictionRequest:
-        """Validate and create PredictionRequest object"""
+    def validate_prediction_request(data: Dict[str, Any], model_id: str) -> Dict[str, Any]:
+        """Validate and create prediction request parameters"""
         if not isinstance(data, dict):
             data = {}  # Allow empty dict for prediction requests
         
@@ -221,13 +247,10 @@ class InputValidator:
         prediction_weeks = data.get('prediction_weeks', 25)
         validated_weeks = InputValidator.validate_prediction_weeks(prediction_weeks)
         
-        try:
-            return PredictionRequest(
-                model_id=validated_model_id,
-                prediction_weeks=validated_weeks
-            )
-        except ValueError as e:
-            raise ValidationError(str(e))
+        return {
+            'model_id': validated_model_id,
+            'prediction_weeks': validated_weeks
+        }
     
     @staticmethod
     def validate_trend_data(data: Dict[str, Any]) -> TrendData:
@@ -237,13 +260,7 @@ class InputValidator:
         except (KeyError, ValueError) as e:
             raise ValidationError(f"Invalid trend data format: {str(e)}")
     
-    @staticmethod
-    def validate_model_metadata(data: Dict[str, Any]) -> ModelMetadata:
-        """Validate and create ModelMetadata object"""
-        try:
-            return ModelMetadata.from_dict(data)
-        except (KeyError, ValueError) as e:
-            raise ValidationError(f"Invalid model metadata format: {str(e)}")
+
 
 
 # Legacy validation functions for backward compatibility
