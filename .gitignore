@@ -133,7 +133,8 @@ mlruns/
 mlflow.db
 
 # Model files
-models/
+# Note: models/ directory contains code that services use, so we exclude __pycache__ within it
+models/__pycache__/
 *.h5
 *.pkl
 *.joblib
@@ -311,5 +312,8 @@ google_trends_cache/
 trends_data/
 model_cache/
 prediction_cache/ 
+
+# Development documents
+STEERING_DOCUMENT.md
 
 docs/

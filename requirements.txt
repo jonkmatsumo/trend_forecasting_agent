@@ -1,34 +1,35 @@
-# Flask and web framework dependencies
+# Web Framework
 Flask==2.3.3
 Flask-CORS==4.0.0
 Flask-Limiter==3.5.0
-gunicorn==21.2.0
+Werkzeug==2.3.7
 
-# Data processing and ML dependencies
+# Data Processing
 pandas==2.1.1
 numpy==1.24.3
 scikit-learn==1.3.0
 
-# Google Trends API
-pytrends==4.9.0
+# Time Series Forecasting with Darts
+darts==0.25.0
+torch==2.0.1
+# prophet==1.1.4  # Note: Prophet has Windows installation issues, install separately if needed
+statsmodels==0.14.0
 
-# Model tracking and management
+# External APIs
+pytrends==4.9.0
+requests==2.31.0
+
+# Model Management
 mlflow==2.7.1
 
-# Configuration and environment
+# Configuration
 python-dotenv==1.0.0
+python-dateutil==2.8.2
 
 # Testing
 pytest==7.4.2
 pytest-flask==1.3.0
 pytest-cov==4.1.0
 
-# Utilities
-requests==2.31.0
-python-dateutil==2.8.2
-
-# Development and debugging
-Werkzeug==2.3.7
-
-# Note: TensorFlow/Keras removed due to Windows Long Path support issues
-# To add TensorFlow later, install with: pip install tensorflow-cpu==2.13.0 
+# Production Server
+gunicorn==21.2.0 
