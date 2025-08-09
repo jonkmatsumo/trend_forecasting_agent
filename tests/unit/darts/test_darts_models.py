@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 from typing import List
 
 from app.models.darts.darts_models import (
-    ModelType, DartsTimeSeriesData, ModelTrainingRequest, 
-    ModelEvaluationMetrics, ForecastResult, DartsModelValidator,
+    ModelType, TimeSeriesData, ModelTrainingRequest, 
+    ModelEvaluationMetrics, ForecastResult, ModelValidator,
     generate_model_id, DEFAULT_MODEL_PARAMETERS
 )
 from darts import TimeSeries
@@ -48,8 +48,8 @@ class TestModelType:
             ModelType("invalid_model")
 
 
-class TestDartsTimeSeriesData:
-    """Test DartsTimeSeriesData class"""
+class TestTimeSeriesData:
+    """Test TimeSeriesData class"""
     
     def setup_method(self):
         """Set up test data"""
@@ -60,8 +60,8 @@ class TestDartsTimeSeriesData:
         )
     
     def test_valid_darts_time_series_data(self):
-        """Test creating valid DartsTimeSeriesData"""
-        data = DartsTimeSeriesData(
+        """Test creating valid TimeSeriesData"""
+        data = TimeSeriesData(
             keyword="test_keyword",
             time_series=self.time_series,
             dates=self.dates,
@@ -77,7 +77,7 @@ class TestDartsTimeSeriesData:
     def test_empty_keyword(self):
         """Test that empty keyword raises ValueError"""
         with pytest.raises(ValueError, match="Keyword cannot be empty"):
-            DartsTimeSeriesData(
+            TimeSeriesData(
                 keyword="",
                 time_series=self.time_series,
                 dates=self.dates,
@@ -87,7 +87,7 @@ class TestDartsTimeSeriesData:
     def test_mismatched_lengths(self):
         """Test that mismatched dates and values raises ValueError"""
         with pytest.raises(ValueError, match="Dates and values must have same length"):
-            DartsTimeSeriesData(
+            TimeSeriesData(
                 keyword="test",
                 time_series=self.time_series,
                 dates=self.dates,
@@ -103,7 +103,7 @@ class TestDartsTimeSeriesData:
         )
         
         with pytest.raises(ValueError, match="Time series must have at least 52 data points"):
-            DartsTimeSeriesData(
+            TimeSeriesData(
                 keyword="test",
                 time_series=short_ts,
                 dates=short_dates,
@@ -112,7 +112,7 @@ class TestDartsTimeSeriesData:
     
     def test_to_dict(self):
         """Test to_dict method"""
-        data = DartsTimeSeriesData(
+        data = TimeSeriesData(
             keyword="test_keyword",
             time_series=self.time_series,
             dates=self.dates,
@@ -464,85 +464,85 @@ class TestForecastResult:
         assert dict_result["model_info"]["forecast_horizon"] == 25
 
 
-class TestDartsModelValidator:
-    """Test DartsModelValidator class"""
+class TestModelValidator:
+    """Test ModelValidator class"""
     
     def test_validate_model_type_valid(self):
         """Test validating valid model types"""
-        assert DartsModelValidator.validate_model_type("lstm") == ModelType.LSTM
-        assert DartsModelValidator.validate_model_type("n_beats") == ModelType.N_BEATS
-        assert DartsModelValidator.validate_model_type("tft") == ModelType.TFT
+        assert ModelValidator.validate_model_type("lstm") == ModelType.LSTM
+        assert ModelValidator.validate_model_type("n_beats") == ModelType.N_BEATS
+        assert ModelValidator.validate_model_type("tft") == ModelType.TFT
     
     def test_validate_model_type_invalid(self):
         """Test validating invalid model types"""
         with pytest.raises(ValueError, match="Invalid model_type"):
-            DartsModelValidator.validate_model_type("invalid_model")
+            ModelValidator.validate_model_type("invalid_model")
     
     def test_validate_time_series_data_valid(self):
         """Test validating valid time series data"""
         data = [50.0, 51.0, 52.0] * 20  # 60 points
-        DartsModelValidator.validate_time_series_data(data)
+        ModelValidator.validate_time_series_data(data)
     
     def test_validate_time_series_data_empty(self):
         """Test validating empty time series data"""
         with pytest.raises(ValueError, match="Time series data cannot be empty"):
-            DartsModelValidator.validate_time_series_data([])
+            ModelValidator.validate_time_series_data([])
     
     def test_validate_time_series_data_insufficient(self):
         """Test validating insufficient time series data"""
         data = [50.0, 51.0, 52.0] * 10  # 30 points
         with pytest.raises(ValueError, match="Time series data must have at least 52 data points"):
-            DartsModelValidator.validate_time_series_data(data)
+            ModelValidator.validate_time_series_data(data)
     
     def test_validate_time_series_data_non_numeric(self):
         """Test validating non-numeric time series data"""
         data = [50.0, "invalid", 52.0] * 20
         with pytest.raises(ValueError, match="All time series values must be numeric"):
-            DartsModelValidator.validate_time_series_data(data)
+            ModelValidator.validate_time_series_data(data)
     
     def test_validate_time_series_data_negative(self):
         """Test validating negative time series data"""
         data = [50.0, -1.0, 52.0] * 20
         with pytest.raises(ValueError, match="Time series values cannot be negative"):
-            DartsModelValidator.validate_time_series_data(data)
+            ModelValidator.validate_time_series_data(data)
     
     def test_validate_dates_valid(self):
         """Test validating valid dates"""
         dates = ["2023-01-01", "2023-01-08", "2023-01-15"]
-        DartsModelValidator.validate_dates(dates)
+        ModelValidator.validate_dates(dates)
     
     def test_validate_dates_empty(self):
         """Test validating empty dates"""
         with pytest.raises(ValueError, match="Dates cannot be empty"):
-            DartsModelValidator.validate_dates([])
+            ModelValidator.validate_dates([])
     
     def test_validate_dates_invalid_format(self):
         """Test validating invalid date format"""
         dates = ["2023-01-01", "invalid-date", "2023-01-15"]
         with pytest.raises(ValueError, match="All dates must be in ISO format"):
-            DartsModelValidator.validate_dates(dates)
+            ModelValidator.validate_dates(dates)
     
     def test_validate_model_parameters_valid(self):
         """Test validating valid model parameters"""
         params = {"n_epochs": 100, "batch_size": 32}
-        DartsModelValidator.validate_model_parameters(ModelType.LSTM, params)
+        ModelValidator.validate_model_parameters(ModelType.LSTM, params)
     
     def test_validate_model_parameters_not_dict(self):
         """Test validating non-dict model parameters"""
         with pytest.raises(ValueError, match="model_parameters must be a dictionary"):
-            DartsModelValidator.validate_model_parameters(ModelType.LSTM, "invalid")
+            ModelValidator.validate_model_parameters(ModelType.LSTM, "invalid")
     
     def test_validate_model_parameters_invalid_epochs(self):
         """Test validating invalid epochs"""
         params = {"n_epochs": 0, "batch_size": 32}
         with pytest.raises(ValueError, match="n_epochs must be positive"):
-            DartsModelValidator.validate_model_parameters(ModelType.LSTM, params)
+            ModelValidator.validate_model_parameters(ModelType.LSTM, params)
     
     def test_validate_model_parameters_invalid_batch_size(self):
         """Test validating invalid batch size"""
         params = {"n_epochs": 100, "batch_size": -1}
         with pytest.raises(ValueError, match="batch_size must be positive"):
-            DartsModelValidator.validate_model_parameters(ModelType.LSTM, params)
+            ModelValidator.validate_model_parameters(ModelType.LSTM, params)
 
 
 class TestUtilityFunctions:

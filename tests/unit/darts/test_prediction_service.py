@@ -11,17 +11,16 @@ from pathlib import Path
 import json
 import numpy as np
 
-from app.services.darts.prediction_service import DartsPredictionService
-from app.services.darts.training_service import DartsModelService
+from app.services.darts.prediction_service import PredictionService
+from app.services.darts.training_service import TrainingService
 from app.models.darts.darts_models import (
     ForecastResult, ModelEvaluationMetrics, ModelType
 )
-from app.models.prediction_model import ModelMetadata
 from app.utils.error_handlers import ModelError, ValidationError
 
 
-class TestDartsPredictionService:
-    """Test cases for DartsPredictionService."""
+class TestPredictionService:
+    """Test cases for PredictionService."""
     
     @pytest.fixture
     def temp_models_dir(self):
@@ -32,28 +31,29 @@ class TestDartsPredictionService:
     
     @pytest.fixture
     def model_service(self, temp_models_dir):
-        """Create a DartsModelService instance with temporary directory."""
-        return DartsModelService(models_dir=temp_models_dir)
+        """Create a TrainingService instance with temporary directory."""
+        return TrainingService(models_dir=temp_models_dir)
     
     @pytest.fixture
     def prediction_service(self, model_service):
-        """Create a DartsPredictionService instance."""
-        return DartsPredictionService(model_service)
+        """Create a PredictionService instance."""
+        return PredictionService(model_service)
     
     @pytest.fixture
     def sample_metadata(self):
         """Create sample model metadata."""
-        return ModelMetadata(
-            keyword="artificial intelligence",
-            training_date=datetime.now(),
-            parameters={"input_chunk_length": 12, "n_epochs": 50},
-            metrics={"test_mae": 2.5, "test_rmse": 3.2, "test_mape": 8.5},
-            model_id="test_model_123",
-            model_path="test/path",
-            model_type="lstm",
-            status="completed",
-            data_points=100
-        )
+        return {
+            "model_id": "test_model_123",
+            "keyword": "artificial intelligence",
+            "training_date": datetime.now().isoformat(),
+            "parameters": {"input_chunk_length": 12, "n_epochs": 50},
+            "metrics": {"test_mae": 2.5, "test_rmse": 3.2, "test_mape": 8.5},
+            "model_path": "test/path",
+            "model_type": "lstm",
+            "status": "completed",
+            "data_points": 100,
+            "created_at": datetime.now().isoformat()
+        }
     
     @pytest.fixture
     def sample_evaluation_metrics(self):
@@ -71,7 +71,7 @@ class TestDartsPredictionService:
     
     def test_initialization(self, model_service):
         """Test service initialization."""
-        service = DartsPredictionService(model_service)
+        service = PredictionService(model_service)
         
         assert service.model_service == model_service
         assert service.logger is not None
@@ -103,8 +103,8 @@ class TestDartsPredictionService:
         prediction_service.model_service.get_model_metadata.assert_called_with("test_model_123")
         prediction_service.model_service.get_evaluation_metrics.assert_called_with("test_model_123")
     
-    @patch('app.services.darts.prediction_service.DartsPredictionService._extract_confidence_intervals')
-    @patch('app.services.darts.prediction_service.DartsPredictionService._generate_forecast_dates')
+    @patch('app.services.darts.prediction_service.PredictionService._extract_confidence_intervals')
+    @patch('app.services.darts.prediction_service.PredictionService._generate_forecast_dates')
     def test_generate_forecast_with_confidence_intervals(self, mock_gen_dates, mock_extract_ci,
                                                        prediction_service, sample_metadata, 
                                                        sample_evaluation_metrics):
@@ -206,7 +206,7 @@ class TestDartsPredictionService:
         # Verify first date is after training date
         assert dates[0] > training_date
     
-    @patch('app.services.darts.prediction_service.DartsPredictionService.generate_forecast')
+    @patch('app.services.darts.prediction_service.PredictionService.generate_forecast')
     def test_compare_models_success(self, mock_generate_forecast, prediction_service,
                                   sample_metadata, sample_evaluation_metrics):
         """Test successful model comparison."""
@@ -315,8 +315,8 @@ class TestDartsPredictionService:
         assert summary["best_model_by_mape"] == "model_1"
         assert summary["best_model_by_directional_accuracy"] == "model_1"
     
-    @patch('app.services.darts.prediction_service.DartsPredictionService._calculate_forecast_accuracy')
-    @patch('app.services.darts.prediction_service.DartsPredictionService.generate_forecast')
+    @patch('app.services.darts.prediction_service.PredictionService._calculate_forecast_accuracy')
+    @patch('app.services.darts.prediction_service.PredictionService.generate_forecast')
     def test_get_forecast_accuracy_report(self, mock_generate_forecast, mock_calc_accuracy, prediction_service,
                                         sample_metadata, sample_evaluation_metrics):
         """Test forecast accuracy report generation."""
@@ -476,7 +476,7 @@ class TestDartsPredictionService:
         assert isinstance(recommendations, list)
         assert len(recommendations) > 0
     
-    @patch('app.services.darts.prediction_service.DartsPredictionService.generate_forecast')
+    @patch('app.services.darts.prediction_service.PredictionService.generate_forecast')
     def test_compare_models_with_confidence_intervals(self, mock_generate_forecast, prediction_service,
                                                     sample_metadata):
         """Test model comparison with confidence intervals."""

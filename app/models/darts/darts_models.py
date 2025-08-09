@@ -33,7 +33,7 @@ class ModelType(Enum):
 
 
 @dataclass
-class DartsTimeSeriesData:
+class TimeSeriesData:
     """Enhanced time series data for Darts"""
     keyword: str
     time_series: TimeSeries
@@ -215,7 +215,7 @@ class ForecastResult:
         }
 
 
-class DartsModelValidator:
+class ModelValidator:
     """Validation utilities for Darts models"""
     
     @staticmethod

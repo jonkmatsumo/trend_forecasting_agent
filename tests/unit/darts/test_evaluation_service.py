@@ -11,17 +11,16 @@ from pathlib import Path
 import json
 import numpy as np
 
-from app.services.darts.evaluation_service import DartsEvaluationService
-from app.services.darts.training_service import DartsModelService
+from app.services.darts.evaluation_service import EvaluationService
+from app.services.darts.training_service import TrainingService
 from app.models.darts.darts_models import (
     ModelEvaluationMetrics, ModelType, ModelTrainingRequest
 )
-from app.models.prediction_model import ModelMetadata
 from app.utils.error_handlers import ModelError, ValidationError
 
 
-class TestDartsEvaluationService:
-    """Test cases for DartsEvaluationService."""
+class TestEvaluationService:
+    """Test cases for EvaluationService."""
     
     @pytest.fixture
     def temp_models_dir(self):
@@ -32,28 +31,29 @@ class TestDartsEvaluationService:
     
     @pytest.fixture
     def model_service(self, temp_models_dir):
-        """Create a DartsModelService instance with temporary directory."""
-        return DartsModelService(models_dir=temp_models_dir)
+        """Create a TrainingService instance with temporary directory."""
+        return TrainingService(models_dir=temp_models_dir)
     
     @pytest.fixture
     def evaluation_service(self, model_service):
-        """Create a DartsEvaluationService instance."""
-        return DartsEvaluationService(model_service)
+        """Create a EvaluationService instance."""
+        return EvaluationService(model_service)
     
     @pytest.fixture
     def sample_metadata(self):
         """Create sample model metadata."""
-        return ModelMetadata(
-            keyword="artificial intelligence",
-            training_date=datetime.now(),
-            parameters={"input_chunk_length": 12, "n_epochs": 50},
-            metrics={"test_mae": 2.5, "test_rmse": 3.2, "test_mape": 8.5},
-            model_id="test_model_123",
-            model_path="test/path",
-            model_type="lstm",
-            status="completed",
-            data_points=100
-        )
+        return {
+            "model_id": "test_model_123",
+            "keyword": "artificial intelligence",
+            "training_date": datetime.now().isoformat(),
+            "parameters": {"input_chunk_length": 12, "n_epochs": 50},
+            "metrics": {"test_mae": 2.5, "test_rmse": 3.2, "test_mape": 8.5},
+            "model_path": "test/path",
+            "model_type": "lstm",
+            "status": "completed",
+            "data_points": 100,
+            "created_at": datetime.now().isoformat()
+        }
     
     @pytest.fixture
     def sample_evaluation_metrics(self):
@@ -98,15 +98,15 @@ class TestDartsEvaluationService:
     
     def test_initialization(self, model_service):
         """Test service initialization."""
-        service = DartsEvaluationService(model_service)
+        service = EvaluationService(model_service)
         
         assert service.model_service == model_service
         assert service.logger is not None
     
-    @patch('app.services.darts.evaluation_service.DartsEvaluationService._load_training_request')
-    @patch('app.services.darts.evaluation_service.DartsEvaluationService._generate_performance_benchmarks')
-    @patch('app.services.darts.evaluation_service.DartsEvaluationService._perform_detailed_analysis')
-    @patch('app.services.darts.evaluation_service.DartsEvaluationService._generate_evaluation_recommendations')
+    @patch('app.services.darts.evaluation_service.EvaluationService._load_training_request')
+    @patch('app.services.darts.evaluation_service.EvaluationService._generate_performance_benchmarks')
+    @patch('app.services.darts.evaluation_service.EvaluationService._perform_detailed_analysis')
+    @patch('app.services.darts.evaluation_service.EvaluationService._generate_evaluation_recommendations')
     def test_evaluate_model_comprehensive_success(self, mock_gen_rec, mock_perf_bench, 
                                                  mock_detailed_analysis, mock_load_request,
                                                  evaluation_service, sample_metadata, 
@@ -131,7 +131,7 @@ class TestDartsEvaluationService:
         # Verify structure
         assert result["model_id"] == "test_model_123"
         assert "evaluation_date" in result
-        assert result["metadata"] == sample_metadata.to_dict()
+        assert result["metadata"] == sample_metadata
         assert result["basic_metrics"] == sample_evaluation_metrics.to_dict()
         # The detailed_analysis and performance_benchmarks might be swapped due to mock order
         assert result["detailed_analysis"] in [{"data_analysis": "test"}, {"benchmarks": "test"}]
@@ -518,9 +518,9 @@ class TestDartsEvaluationService:
         assert len(recommendations) > 0
         assert all(isinstance(rec, str) for rec in recommendations)
     
-    @patch('app.services.darts.evaluation_service.DartsEvaluationService._compare_models_benchmark')
-    @patch('app.services.darts.evaluation_service.DartsEvaluationService._generate_benchmark_rankings')
-    @patch('app.services.darts.evaluation_service.DartsEvaluationService._generate_benchmark_recommendations')
+    @patch('app.services.darts.evaluation_service.EvaluationService._compare_models_benchmark')
+    @patch('app.services.darts.evaluation_service.EvaluationService._generate_benchmark_rankings')
+    @patch('app.services.darts.evaluation_service.EvaluationService._generate_benchmark_recommendations')
     def test_benchmark_models(self, mock_gen_rec, mock_gen_rank, mock_compare,
                              evaluation_service, sample_metadata, sample_evaluation_metrics):
         """Test model benchmarking."""

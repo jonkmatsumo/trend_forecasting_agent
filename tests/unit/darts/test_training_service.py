@@ -12,16 +12,15 @@ import json
 import pickle
 import numpy as np
 
-from app.services.darts.training_service import DartsModelService
+from app.services.darts.training_service import TrainingService
 from app.models.darts.darts_models import (
     ModelTrainingRequest, ModelEvaluationMetrics, ModelType
 )
-from app.models.prediction_model import ModelMetadata
 from app.utils.error_handlers import ValidationError, ModelError
 
 
-class TestDartsModelService:
-    """Test cases for DartsModelService."""
+class TestTrainingService:
+    """Test cases for TrainingService."""
     
     @pytest.fixture
     def temp_models_dir(self):
@@ -32,8 +31,8 @@ class TestDartsModelService:
     
     @pytest.fixture
     def model_service(self, temp_models_dir):
-        """Create a DartsModelService instance with temporary directory."""
-        return DartsModelService(models_dir=temp_models_dir)
+        """Create a TrainingService instance with temporary directory."""
+        return TrainingService(models_dir=temp_models_dir)
     
     @pytest.fixture
     def sample_training_request(self):
@@ -64,7 +63,7 @@ class TestDartsModelService:
     
     def test_initialization(self, temp_models_dir):
         """Test service initialization."""
-        service = DartsModelService(models_dir=temp_models_dir)
+        service = TrainingService(models_dir=temp_models_dir)
         
         assert service.models_dir == Path(temp_models_dir)
         assert service.models_dir.exists()
@@ -307,26 +306,27 @@ class TestDartsModelService:
         model_dir.mkdir(exist_ok=True)
         
         # Create sample metadata
-        metadata = ModelMetadata(
-            keyword="test",
-            training_date=datetime.now(),
-            parameters={"input_chunk_length": 12},
-            metrics={"test_mae": 2.5, "test_rmse": 3.2, "test_mape": 8.5},
-            model_id=model_id,
-            model_path="test/path",
-            model_type="lstm",
-            status="completed",
-            data_points=100
-        )
+        metadata = {
+            "model_id": model_id,
+            "keyword": "test",
+            "training_date": datetime.now().isoformat(),
+            "parameters": {"input_chunk_length": 12},
+            "metrics": {"test_mae": 2.5, "test_rmse": 3.2, "test_mape": 8.5},
+            "model_path": "test/path",
+            "model_type": "lstm",
+            "status": "completed",
+            "data_points": 100,
+            "created_at": datetime.now().isoformat()
+        }
         
         metadata_path = model_dir / "metadata.json"
         with open(metadata_path, 'w') as f:
-            json.dump(metadata.to_dict(), f, default=str)
+            json.dump(metadata, f, default=str)
         
         # Test loading
         loaded_metadata = model_service.get_model_metadata(model_id)
-        assert loaded_metadata.keyword == metadata.keyword
-        assert loaded_metadata.model_id == metadata.model_id
+        assert loaded_metadata["keyword"] == metadata["keyword"]
+        assert loaded_metadata["model_id"] == metadata["model_id"]
     
     def test_get_model_metadata_not_found(self, model_service):
         """Test loading non-existent metadata."""
@@ -377,26 +377,27 @@ class TestDartsModelService:
         model_dir = Path(temp_models_dir) / model_id
         model_dir.mkdir(exist_ok=True)
         
-        metadata = ModelMetadata(
-            keyword="test",
-            training_date=datetime.now(),
-            parameters={"input_chunk_length": 12},
-            metrics={"test_mae": 2.5, "test_rmse": 3.2, "test_mape": 8.5},
-            model_id=model_id,
-            model_path="test/path",
-            model_type="lstm",
-            status="completed",
-            data_points=100
-        )
+        metadata = {
+            "model_id": model_id,
+            "keyword": "test",
+            "training_date": datetime.now().isoformat(),
+            "parameters": {"input_chunk_length": 12},
+            "metrics": {"test_mae": 2.5, "test_rmse": 3.2, "test_mape": 8.5},
+            "model_path": "test/path",
+            "model_type": "lstm",
+            "status": "completed",
+            "data_points": 100,
+            "created_at": datetime.now().isoformat()
+        }
         
         metadata_path = model_dir / "metadata.json"
         with open(metadata_path, 'w') as f:
-            json.dump(metadata.to_dict(), f, default=str)
+            json.dump(metadata, f, default=str)
         
         # Test listing
         models = model_service.list_models()
         assert len(models) == 1
-        assert models[0].model_id == model_id
+        assert models[0]["model_id"] == model_id
     
     def test_delete_model_success(self, model_service, temp_models_dir):
         """Test successful model deletion."""

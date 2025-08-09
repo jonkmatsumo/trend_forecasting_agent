@@ -25,15 +25,14 @@ from darts.utils.statistics import check_seasonality
 from sklearn.preprocessing import MinMaxScaler
 
 from app.models.darts.darts_models import (
-    ModelType, DartsTimeSeriesData, ModelTrainingRequest,
+    ModelType, TimeSeriesData, ModelTrainingRequest,
     ModelEvaluationMetrics, ForecastResult, DEFAULT_MODEL_PARAMETERS,
     generate_model_id
 )
-from app.models.prediction_model import ModelMetadata
 from app.utils.error_handlers import ModelError, ValidationError
 
 
-class DartsModelService:
+class TrainingService:
     """Service for managing Darts time series forecasting models."""
     
     def __init__(self, models_dir: str = "models", mlflow_tracking_uri: str = "sqlite:///mlflow.db"):
@@ -362,11 +361,12 @@ class DartsModelService:
                 pickle.dump(model, f)
             
             # Create and save metadata
-            metadata = ModelMetadata(
-                keyword=request.keyword,
-                training_date=datetime.now(),
-                parameters=request.model_parameters,
-                metrics={
+            metadata = {
+                "model_id": model_id,
+                "keyword": request.keyword,
+                "training_date": datetime.now().isoformat(),
+                "parameters": request.model_parameters,
+                "metrics": {
                     "test_mae": metrics.test_mae,
                     "test_rmse": metrics.test_rmse,
                     "test_mape": metrics.test_mape,
@@ -374,17 +374,17 @@ class DartsModelService:
                     "coverage_95": metrics.coverage_95,
                     "training_time_seconds": metrics.training_time_seconds
                 },
-                model_id=model_id,
-                model_path=str(model_path),
-                model_type=request.model_type.value,
-                darts_model_path=str(model_path),
-                status="completed",
-                data_points=len(request.time_series_data)
-            )
+                "model_path": str(model_path),
+                "model_type": request.model_type.value,
+                "darts_model_path": str(model_path),
+                "status": "completed",
+                "data_points": len(request.time_series_data),
+                "created_at": datetime.now().isoformat()
+            }
             
             metadata_path = model_dir / "metadata.json"
             with open(metadata_path, 'w') as f:
-                json.dump(metadata.to_dict(), f, indent=2, default=str)
+                json.dump(metadata, f, indent=2, default=str)
             
             # Save evaluation metrics
             metrics_path = model_dir / "evaluation.json"
@@ -482,14 +482,14 @@ class DartsModelService:
             self.logger.error(f"Failed to load model {model_id}: {str(e)}")
             raise ModelError(f"Failed to load model: {str(e)}")
     
-    def get_model_metadata(self, model_id: str) -> ModelMetadata:
+    def get_model_metadata(self, model_id: str) -> dict:
         """Get model metadata.
         
         Args:
             model_id: Unique model identifier
             
         Returns:
-            Model metadata
+            Model metadata as dictionary
             
         Raises:
             ModelError: If metadata loading fails
@@ -503,7 +503,7 @@ class DartsModelService:
             with open(metadata_path, 'r') as f:
                 metadata_dict = json.load(f)
             
-            return ModelMetadata.from_dict(metadata_dict)
+            return metadata_dict
             
         except Exception as e:
             self.logger.error(f"Failed to load model metadata {model_id}: {str(e)}")
@@ -555,11 +555,11 @@ class DartsModelService:
             self.logger.error(f"Failed to load evaluation metrics {model_id}: {str(e)}")
             raise ModelError(f"Failed to load evaluation metrics: {str(e)}")
     
-    def list_models(self) -> List[ModelMetadata]:
+    def list_models(self) -> List[dict]:
         """List all available models.
         
         Returns:
-            List of model metadata
+            List of model metadata dictionaries
         """
         models = []
         
@@ -571,8 +571,7 @@ class DartsModelService:
                         try:
                             with open(metadata_path, 'r') as f:
                                 metadata_dict = json.load(f)
-                            metadata = ModelMetadata.from_dict(metadata_dict)
-                            models.append(metadata)
+                            models.append(metadata_dict)
                         except Exception as e:
                             self.logger.warning(f"Failed to load metadata from {model_dir}: {str(e)}")
                             continue

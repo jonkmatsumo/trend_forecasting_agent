@@ -32,8 +32,8 @@ class TestDartsAPI:
     @pytest.fixture
     def mock_darts_services(self):
         """Mock Darts services responses"""
-        with patch('app.services.darts.training_service.DartsModelService') as mock_training_service, \
-             patch('app.services.darts.prediction_service.DartsPredictionService') as mock_prediction_service:
+        with patch('app.services.darts.training_service.TrainingService') as mock_training_service, \
+             patch('app.services.darts.prediction_service.PredictionService') as mock_prediction_service:
             
             # Mock training service
             mock_training_instance = Mock()

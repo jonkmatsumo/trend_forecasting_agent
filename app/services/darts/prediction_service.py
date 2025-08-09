@@ -15,15 +15,14 @@ from darts import TimeSeries
 from app.models.darts.darts_models import (
     ForecastResult, ModelEvaluationMetrics, ModelType
 )
-from app.models.prediction_model import PredictionResult, ModelMetadata
-from app.services.darts.training_service import DartsModelService
+from app.services.darts.training_service import TrainingService
 from app.utils.error_handlers import ModelError, ValidationError
 
 
-class DartsPredictionService:
+class PredictionService:
     """Service for generating predictions using trained Darts models."""
     
-    def __init__(self, model_service: DartsModelService):
+    def __init__(self, model_service: TrainingService):
         """Initialize the Darts prediction service.
         
         Args:
@@ -86,14 +85,15 @@ class DartsPredictionService:
             prediction_time = time.time() - start_time
             
             # Create forecast dates
+            training_date = datetime.fromisoformat(metadata["training_date"])
             forecast_dates = self._generate_forecast_dates(
-                metadata.training_date, forecast_horizon
+                training_date, forecast_horizon
             )
             
             # Create forecast result
             result = ForecastResult(
                 model_id=model_id,
-                keyword=metadata.keyword,
+                keyword=metadata["keyword"],
                 forecast_horizon=forecast_horizon,
                 forecast_values=point_forecast.values().flatten().tolist(),
                 forecast_dates=forecast_dates,  # Already datetime objects
@@ -208,7 +208,7 @@ class DartsPredictionService:
                     
                     # Store results
                     comparison_results["models"][model_id] = {
-                        "metadata": metadata.to_dict(),
+                        "metadata": metadata,  # Already a dictionary
                         "evaluation_metrics": evaluation_metrics.to_dict(),
                         "forecast": forecast_result.to_dict()
                     }
@@ -342,9 +342,9 @@ class DartsPredictionService:
             
             report = {
                 "model_id": model_id,
-                "keyword": metadata.keyword,
-                "model_type": metadata.model_type,
-                "training_date": metadata.training_date.isoformat(),
+                "keyword": metadata["keyword"],
+                "model_type": metadata["model_type"],
+                "training_date": metadata["training_date"],
                 "evaluation_metrics": evaluation_metrics.to_dict(),
                 "forecast_accuracy": {},
                 "recommendations": []

@@ -133,8 +133,8 @@ def train_model():
         training_request = validator.validate_training_request(data)
         
         # Initialize service lazily
-        from app.services.darts.training_service import DartsModelService
-        model_service = DartsModelService()
+        from app.services.darts.training_service import TrainingService
+        model_service = TrainingService()
         
         # Train model
         model_id, evaluation_metrics = model_service.train_model(training_request)
@@ -188,10 +188,10 @@ def generate_prediction(model_id):
         prediction_request = validator.validate_prediction_request(data, model_id)
         
         # Initialize service lazily
-        from app.services.darts.prediction_service import DartsPredictionService
-        from app.services.darts.training_service import DartsModelService
-        model_service = DartsModelService()
-        prediction_service = DartsPredictionService(model_service)
+        from app.services.darts.prediction_service import PredictionService
+        from app.services.darts.training_service import TrainingService
+        model_service = TrainingService()
+        prediction_service = PredictionService(model_service)
         
         # Generate prediction
         prediction_result = prediction_service.generate_forecast(
@@ -253,8 +253,8 @@ def get_model_info(model_id):
         validated_model_id = validator.validate_model_id(model_id)
         
         # Initialize service lazily
-        from app.services.darts.training_service import DartsModelService
-        model_service = DartsModelService()
+        from app.services.darts.training_service import TrainingService
+        model_service = TrainingService()
         
         # Get model info
         model_info = model_service.get_model_info(validated_model_id)
@@ -303,8 +303,8 @@ def list_models():
     """
     try:
         # Initialize service lazily
-        from app.services.darts.training_service import DartsModelService
-        model_service = DartsModelService()
+        from app.services.darts.training_service import TrainingService
+        model_service = TrainingService()
         
         # Get models list
         models = model_service.list_models()

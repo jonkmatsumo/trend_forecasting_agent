@@ -15,15 +15,14 @@ from darts.utils.statistics import check_seasonality, plot_acf, plot_pacf
 from app.models.darts.darts_models import (
     ModelEvaluationMetrics, ModelType, ModelTrainingRequest
 )
-from app.models.prediction_model import ModelMetadata
-from app.services.darts.training_service import DartsModelService
+from app.services.darts.training_service import TrainingService
 from app.utils.error_handlers import ModelError, ValidationError
 
 
-class DartsEvaluationService:
+class EvaluationService:
     """Service for comprehensive model evaluation and benchmarking."""
     
-    def __init__(self, model_service: DartsModelService):
+    def __init__(self, model_service: TrainingService):
         """Initialize the Darts evaluation service.
         
         Args:
@@ -58,7 +57,7 @@ class DartsEvaluationService:
             evaluation_results = {
                 "model_id": model_id,
                 "evaluation_date": datetime.now().isoformat(),
-                "metadata": metadata.to_dict(),
+                "metadata": metadata,  # Already a dictionary
                 "basic_metrics": evaluation_metrics.to_dict(),
                 "detailed_analysis": {},
                 "performance_benchmarks": {},
@@ -73,7 +72,7 @@ class DartsEvaluationService:
             
             # Generate performance benchmarks
             evaluation_results["performance_benchmarks"] = self._generate_performance_benchmarks(
-                evaluation_metrics, metadata.model_type
+                evaluation_metrics, metadata["model_type"]
             )
             
             # Generate recommendations

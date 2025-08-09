@@ -1,5 +1,5 @@
-from .training_service import DartsModelService
-from .evaluation_service import DartsEvaluationService
-from .prediction_service import DartsPredictionService
+from .training_service import TrainingService
+from .evaluation_service import EvaluationService
+from .prediction_service import PredictionService
 
-__all__ = ['DartsModelService', 'DartsEvaluationService', 'DartsPredictionService']
+__all__ = ['TrainingService', 'EvaluationService', 'PredictionService']
