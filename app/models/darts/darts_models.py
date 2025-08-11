@@ -16,19 +16,69 @@ from darts import TimeSeries
 
 class ModelType(Enum):
     """Supported Darts model types"""
+    # Neural Network Models
     LSTM = "lstm"
     TCN = "tcn"
     TRANSFORMER = "transformer"
-    PROPHET = "prophet"
-    ARIMA = "arima"
-    EXPONENTIAL_SMOOTHING = "exponential_smoothing"
-    RANDOM_FOREST = "random_forest"
     N_BEATS = "n_beats"
+    N_HITS = "n_hits"
+    N_LINEAR = "n_linear"
+    D_LINEAR = "d_linear"
     TFT = "tft"
     GRU = "gru"
+    RNN = "rnn"
+    BLOCK_RNN = "block_rnn"
+    TIDE = "tide"
+    
+    # Statistical Models
+    ARIMA = "arima"
     AUTO_ARIMA = "auto_arima"
-    AUTO_ETS = "auto_ets"
+    VARIMA = "varima"
+    EXPONENTIAL_SMOOTHING = "exponential_smoothing"
+    THETA = "theta"
     AUTO_THETA = "auto_theta"
+    FOUR_THETA = "four_theta"
+    CROSTON = "croston"
+    BATS = "bats"
+    TBATS = "tbats"
+    
+    # Machine Learning Models
+    RANDOM_FOREST = "random_forest"
+    LINEAR_REGRESSION = "linear_regression"
+    REGRESSION_MODEL = "regression_model"
+    CATBOOST = "catboost"
+    LIGHTGBM = "lightgbm"
+    XGBOOST = "xgboost"
+    
+    # Ensemble Models
+    ENSEMBLE = "ensemble"
+    NAIVE_ENSEMBLE = "naive_ensemble"
+    REGRESSION_ENSEMBLE = "regression_ensemble"
+    
+    # Prophet Models
+    PROPHET = "prophet"
+    
+    # Filtering Models
+    KALMAN_FILTER = "kalman_filter"
+    KALMAN_FORECASTER = "kalman_forecaster"
+    MOVING_AVERAGE_FILTER = "moving_average_filter"
+    GAUSSIAN_PROCESS_FILTER = "gaussian_process_filter"
+    
+    # Naive Models
+    NAIVE_DRIFT = "naive_drift"
+    NAIVE_MEAN = "naive_mean"
+    NAIVE_MOVING_AVERAGE = "naive_moving_average"
+    NAIVE_SEASONAL = "naive_seasonal"
+    
+    # StatsForecast Models
+    STATS_FORECAST_AUTO_ARIMA = "stats_forecast_auto_arima"
+    STATS_FORECAST_AUTO_CES = "stats_forecast_auto_ces"
+    STATS_FORECAST_AUTO_ETS = "stats_forecast_auto_ets"
+    STATS_FORECAST_AUTO_THETA = "stats_forecast_auto_theta"
+    
+    # Other Models
+    FFT = "fft"
+    AUTO_ETS = "auto_ets"
     AUTO_CES = "auto_ces"
 
 
@@ -256,12 +306,53 @@ class ModelValidator:
         if not isinstance(parameters, dict):
             raise ValueError("model_parameters must be a dictionary")
         
-        # Add model-specific validation here as needed
-        if model_type in [ModelType.LSTM, ModelType.GRU, ModelType.TCN, ModelType.TRANSFORMER, ModelType.N_BEATS, ModelType.TFT]:
+        # Neural Network Models (require epochs and batch_size)
+        neural_models = [
+            ModelType.LSTM, ModelType.GRU, ModelType.TCN, ModelType.TRANSFORMER, 
+            ModelType.N_BEATS, ModelType.N_HITS, ModelType.N_LINEAR, ModelType.D_LINEAR,
+            ModelType.TFT, ModelType.RNN, ModelType.BLOCK_RNN, ModelType.TIDE
+        ]
+        
+        if model_type in neural_models:
             if "n_epochs" in parameters and parameters["n_epochs"] <= 0:
                 raise ValueError("n_epochs must be positive")
             if "batch_size" in parameters and parameters["batch_size"] <= 0:
                 raise ValueError("batch_size must be positive")
+            if "input_chunk_length" in parameters and parameters["input_chunk_length"] <= 0:
+                raise ValueError("input_chunk_length must be positive")
+        
+        # ARIMA Models (require p, d, q parameters)
+        arima_models = [ModelType.ARIMA, ModelType.AUTO_ARIMA, ModelType.VARIMA]
+        if model_type in arima_models:
+            if "p" in parameters and parameters["p"] < 0:
+                raise ValueError("p parameter must be non-negative")
+            if "d" in parameters and parameters["d"] < 0:
+                raise ValueError("d parameter must be non-negative")
+            if "q" in parameters and parameters["q"] < 0:
+                raise ValueError("q parameter must be non-negative")
+        
+        # Machine Learning Models (require n_estimators for ensemble methods)
+        ml_models = [ModelType.RANDOM_FOREST, ModelType.CATBOOST, ModelType.LIGHTGBM, ModelType.XGBOOST]
+        if model_type in ml_models:
+            if "n_estimators" in parameters and parameters["n_estimators"] <= 0:
+                raise ValueError("n_estimators must be positive")
+        
+        # Ensemble Models (require models list)
+        ensemble_models = [ModelType.ENSEMBLE, ModelType.NAIVE_ENSEMBLE, ModelType.REGRESSION_ENSEMBLE]
+        if model_type in ensemble_models:
+            if "models" in parameters and not isinstance(parameters["models"], list):
+                raise ValueError("models parameter must be a list")
+            if "models" in parameters and len(parameters["models"]) < 2:
+                raise ValueError("ensemble must have at least 2 models")
+        
+        # Prophet Models (require yearly_seasonality, weekly_seasonality, daily_seasonality)
+        if model_type == ModelType.PROPHET:
+            if "yearly_seasonality" in parameters and not isinstance(parameters["yearly_seasonality"], bool):
+                raise ValueError("yearly_seasonality must be a boolean")
+            if "weekly_seasonality" in parameters and not isinstance(parameters["weekly_seasonality"], bool):
+                raise ValueError("weekly_seasonality must be a boolean")
+            if "daily_seasonality" in parameters and not isinstance(parameters["daily_seasonality"], bool):
+                raise ValueError("daily_seasonality must be a boolean")
 
 
 def generate_model_id() -> str:
@@ -377,5 +468,137 @@ DEFAULT_MODEL_PARAMETERS = {
     ModelType.AUTO_CES: {
         'seasonal_periods': 52,
         'model': 'ZZZ'
-    }
+    },
+    # Additional Neural Network Models
+    ModelType.N_HITS: {
+        'input_chunk_length': 12,
+        'output_chunk_length': 1,
+        'num_stacks': 3,
+        'num_blocks': 1,
+        'num_layers': 2,
+        'layer_widths': 256,
+        'n_epochs': 100,
+        'batch_size': 32
+    },
+    ModelType.N_LINEAR: {
+        'input_chunk_length': 12,
+        'output_chunk_length': 1,
+        'n_epochs': 100,
+        'batch_size': 32
+    },
+    ModelType.D_LINEAR: {
+        'input_chunk_length': 12,
+        'output_chunk_length': 1,
+        'n_epochs': 100,
+        'batch_size': 32
+    },
+    ModelType.RNN: {
+        'input_chunk_length': 12,
+        'output_chunk_length': 1,
+        'hidden_size': 50,
+        'num_layers': 2,
+        'dropout': 0.1,
+        'n_epochs': 100,
+        'batch_size': 32
+    },
+    ModelType.BLOCK_RNN: {
+        'input_chunk_length': 12,
+        'output_chunk_length': 1,
+        'hidden_size': 50,
+        'num_layers': 2,
+        'dropout': 0.1,
+        'n_epochs': 100,
+        'batch_size': 32
+    },
+    ModelType.TIDE: {
+        'input_chunk_length': 12,
+        'output_chunk_length': 1,
+        'hidden_size': 64,
+        'num_layers': 2,
+        'dropout': 0.1,
+        'n_epochs': 100,
+        'batch_size': 32
+    },
+    # Additional Statistical Models
+    ModelType.VARIMA: {
+        'p': 1,
+        'd': 1,
+        'q': 1
+    },
+    ModelType.THETA: {
+        'seasonal_periods': 52
+    },
+    ModelType.FOUR_THETA: {
+        'seasonal_periods': 52
+    },
+    ModelType.CROSTON: {},
+    ModelType.BATS: {
+        'seasonal_periods': 52
+    },
+    ModelType.TBATS: {
+        'seasonal_periods': 52
+    },
+    # Additional Machine Learning Models
+    ModelType.LINEAR_REGRESSION: {
+        'lags': 12
+    },
+    ModelType.REGRESSION_MODEL: {
+        'lags': 12
+    },
+    ModelType.CATBOOST: {
+        'lags': 12,
+        'n_estimators': 100,
+        'max_depth': 6
+    },
+    ModelType.LIGHTGBM: {
+        'lags': 12,
+        'n_estimators': 100,
+        'max_depth': 6
+    },
+    ModelType.XGBOOST: {
+        'lags': 12,
+        'n_estimators': 100,
+        'max_depth': 6
+    },
+    # Ensemble Models
+    ModelType.ENSEMBLE: {
+        'models': []
+    },
+    ModelType.NAIVE_ENSEMBLE: {
+        'models': []
+    },
+    ModelType.REGRESSION_ENSEMBLE: {
+        'models': []
+    },
+    # Filtering Models
+    ModelType.KALMAN_FILTER: {},
+    ModelType.KALMAN_FORECASTER: {},
+    ModelType.MOVING_AVERAGE_FILTER: {
+        'window': 12
+    },
+    ModelType.GAUSSIAN_PROCESS_FILTER: {},
+    # Naive Models
+    ModelType.NAIVE_DRIFT: {},
+    ModelType.NAIVE_MEAN: {},
+    ModelType.NAIVE_MOVING_AVERAGE: {
+        'window': 12
+    },
+    ModelType.NAIVE_SEASONAL: {
+        'seasonal_periods': 52
+    },
+    # StatsForecast Models
+    ModelType.STATS_FORECAST_AUTO_ARIMA: {
+        'seasonal_periods': 52
+    },
+    ModelType.STATS_FORECAST_AUTO_CES: {
+        'seasonal_periods': 52
+    },
+    ModelType.STATS_FORECAST_AUTO_ETS: {
+        'seasonal_periods': 52
+    },
+    ModelType.STATS_FORECAST_AUTO_THETA: {
+        'seasonal_periods': 52
+    },
+    # Other Models
+    ModelType.FFT: {}
 } 
