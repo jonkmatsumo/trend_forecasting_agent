@@ -45,7 +45,9 @@ def create_app(config_name=None):
 
     # Register blueprints
     from app.api.routes import api_bp
+    from app.api.agent_routes import agent_bp
     app.register_blueprint(api_bp, url_prefix='/api')
+    app.register_blueprint(agent_bp, url_prefix='/agent')
 
     # Health check endpoint
     @app.route('/health')
