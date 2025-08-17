@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass
 
 from app.models.agent_models import AgentIntent
+from app.utils.text_normalizer import normalize_views
 
 
 @dataclass
@@ -58,60 +59,62 @@ class SlotExtractor:
         Returns:
             ExtractedSlots with all found parameters
         """
-        query_lower = query.lower().strip()
+        # Use text normalizer for dual-view normalization
+        norm_loose, norm_strict, _ = normalize_views(query)
         
         slots = ExtractedSlots()
         
-        # Extract keywords (most important for most intents)
-        slots.keywords = self._extract_keywords(query)
+        # Extract keywords using loose normalization (preserves case and edge punctuation)
+        slots.keywords = self._extract_keywords(query, norm_loose)
         
-        # Extract intent-specific slots
+        # Extract intent-specific slots using strict normalization (for regex matching)
         if intent in [AgentIntent.FORECAST, AgentIntent.TRAIN]:
-            slots.horizon = self._extract_horizon(query_lower)
-            slots.quantiles = self._extract_quantiles(query_lower)
+            slots.horizon = self._extract_horizon(norm_strict)
+            slots.quantiles = self._extract_quantiles(norm_strict)
             
         elif intent == AgentIntent.EVALUATE:
-            slots.model_id = self._extract_model_id(query_lower)
+            slots.model_id = self._extract_model_id(norm_strict)
             
         # Extract common slots (available for all intents)
-        slots.geo = self._extract_geo(query_lower)
-        slots.category = self._extract_category(query_lower)
+        slots.geo = self._extract_geo(norm_strict)
+        slots.category = self._extract_category(norm_strict)
         
         # Extract date range for all intents that might need it
         if intent in [AgentIntent.FORECAST, AgentIntent.SUMMARY, AgentIntent.COMPARE]:
-            slots.date_range = self._extract_date_range(query_lower)
+            slots.date_range = self._extract_date_range(norm_strict)
         
         return slots
     
-    def _extract_keywords(self, query: str) -> Optional[List[str]]:
+    def _extract_keywords(self, query: str, norm_loose: str) -> Optional[List[str]]:
         """Extract keywords from the query.
         
         Args:
-            query: The natural language query
+            query: The original natural language query (for quoted extraction)
+            norm_loose: Loosely normalized query text (preserves case and edge punctuation)
             
         Returns:
             List of extracted keywords
         """
         keywords = []
         
-        # Extract quoted keywords (highest priority)
+        # Extract quoted keywords (highest priority) - use original query for quotes
         quoted_keywords = re.findall(r'"([^"]*)"', query)
         keywords.extend(quoted_keywords)
         
-        # Extract single quoted keywords
+        # Extract single quoted keywords - use original query for quotes
         single_quoted_keywords = re.findall(r"'([^']*)'", query)
         keywords.extend(single_quoted_keywords)
         
-        # Extract keywords from comparison patterns (vs, versus, etc.)
+        # Extract keywords from comparison patterns (vs, versus, etc.) - use normalized text
         comparison_patterns = [
-            r'\b([a-zA-Z0-9\s]+?)\s+vs\s+([a-zA-Z0-9\s]+?)\b',
+            r'\b([a-zA-Z0-9\s]+?)\s+vs\.?\s+([a-zA-Z0-9\s]+?)\b',
             r'\b([a-zA-Z0-9\s]+?)\s+versus\s+([a-zA-Z0-9\s]+?)\b',
             r'\b([a-zA-Z0-9\s]+?)\s+compared\s+to\s+([a-zA-Z0-9\s]+?)\b',
             r'\b([a-zA-Z0-9\s]+?)\s+and\s+([a-zA-Z0-9\s]+?)\b'
         ]
         
         for pattern in comparison_patterns:
-            matches = re.findall(pattern, query, re.IGNORECASE)
+            matches = re.findall(pattern, norm_loose, re.IGNORECASE)
             for match in matches:
                 if isinstance(match, tuple):
                     for keyword in match:
@@ -123,7 +126,7 @@ class SlotExtractor:
                     if len(keyword) > 2 and keyword not in keywords:
                         keywords.append(keyword)
         
-        # Extract keywords after "for" or "about"
+        # Extract keywords after "for" or "about" - use normalized text
         for_patterns = [
             r'\bfor\s+([a-zA-Z0-9\s]+?)(?:\s+(?:next|in|over|during|the|a|an|this|that))',
             r'\babout\s+([a-zA-Z0-9\s]+?)(?:\s+(?:next|in|over|during|the|a|an|this|that))',
@@ -134,15 +137,15 @@ class SlotExtractor:
         ]
         
         for pattern in for_patterns:
-            matches = re.findall(pattern, query, re.IGNORECASE)
+            matches = re.findall(pattern, norm_loose, re.IGNORECASE)
             for match in matches:
                 keyword = match.strip()
                 if len(keyword) > 2 and keyword not in keywords:
                     keywords.append(keyword)
         
-        # Extract keywords before common stop words
+        # Extract keywords before common stop words - use normalized text
         stop_words = ['next', 'in', 'over', 'during', 'the', 'a', 'an', 'this', 'that', 'will', 'is', 'are', 'what', 'how', 'when', 'where', 'why', 'who', 'for', 'with', 'and', 'or', 'but', 'to', 'from', 'by', 'at', 'on', 'up', 'down', 'out', 'off', 'through', 'between', 'among', 'within', 'without', 'against', 'toward', 'towards', 'into', 'onto', 'upon', 'about', 'above', 'below', 'beneath', 'under', 'over', 'across', 'along', 'around', 'behind', 'before', 'after', 'since', 'until', 'while', 'during', 'throughout', 'despite', 'except', 'besides', 'like', 'unlike', 'as', 'than', 'per', 'via', 'versus', 'vs', 'week', 'month', 'year', 'day', 'days', 'weeks', 'months', 'years', 'last', 'first', 'current', 'recent', 'latest', 'previous', 'trends', 'trend', 'data', 'information', 'summary', 'overview', 'insights', 'performance', 'accuracy', 'metrics', 'scores', 'results', 'health', 'working', 'alive', 'okay', 'cache', 'stats', 'statistics', 'list', 'show', 'display', 'models', 'model', 'train', 'build', 'create', 'develop', 'evaluate', 'assess', 'test']
-        words = query.split()
+        words = norm_loose.split()
         
         for i, word in enumerate(words):
             if i < len(words) - 1 and words[i + 1].lower() in stop_words:

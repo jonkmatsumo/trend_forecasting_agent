@@ -364,4 +364,85 @@ class TestSlotExtractor:
             if slots.quantiles:
                 # Verify that the extracted quantiles are a subset of expected ones
                 # or that at least one expected quantile is present
-                assert any(q in expected_quantiles for q in slots.quantiles) or any(q in slots.quantiles for q in expected_quantiles) 
+                assert any(q in expected_quantiles for q in slots.quantiles) or any(q in slots.quantiles for q in expected_quantiles)
+    
+    def test_text_normalizer_integration_loose_keywords(self):
+        """Test that keywords use loose normalization (preserves case and edge punctuation)."""
+        # Test that quoted keywords preserve case
+        query = 'Forecast trends for "Machine Learning" and "Artificial Intelligence"'
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        assert "Machine Learning" in slots.keywords
+        assert "Artificial Intelligence" in slots.keywords
+        
+        # Test that single quoted keywords preserve case
+        query = "Compare 'Python' vs 'JavaScript'"
+        slots = self.extractor.extract_slots(query, AgentIntent.COMPARE)
+        
+        assert "Python" in slots.keywords
+        assert "JavaScript" in slots.keywords
+    
+    def test_text_normalizer_integration_strict_regex(self):
+        """Test that regex-based extractions use strict normalization (casefolded, trimmed)."""
+        # Test that horizon extraction works with mixed case
+        query = "Forecast for Next Week"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.horizon == 7
+        
+        # Test that quantile extraction works with mixed case
+        query = "Forecast with P10 and P90"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.quantiles == [0.1, 0.9]
+        
+        # Test that date extraction works with mixed case
+        query = "Forecast from 2024-01-01 To 2024-12-31"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.date_range == {'start_date': '2024-01-01', 'end_date': '2024-12-31'}
+    
+    def test_text_normalizer_integration_edge_punctuation(self):
+        """Test that edge punctuation is handled correctly by normalization."""
+        # Test that keywords preserve edge punctuation in quotes
+        query = 'Forecast trends for "Machine Learning!!!" and "AI???"'
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        assert "Machine Learning!!!" in slots.keywords
+        assert "AI???" in slots.keywords
+        
+        # Test that regex extractions work with edge punctuation
+        query = "Forecast for next week!!!"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.horizon == 7
+        
+        query = "Forecast with p10 and p90???"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.quantiles == [0.1, 0.9]
+    
+    def test_text_normalizer_integration_unicode_handling(self):
+        """Test that Unicode characters are handled correctly by normalization."""
+        # Test with smart quotes and dashes
+        query = "Forecast trends for 'Machine Learning' — next week"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        assert "Machine Learning" in slots.keywords
+        assert slots.horizon == 7
+        
+        # Test with full-width digits
+        query = "Forecast with p１０ and p９０"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.quantiles == [0.1, 0.9]
+    
+    def test_text_normalizer_integration_versus_canonicalization(self):
+        """Test that versus canonicalization works correctly."""
+        # Test that "versus" is canonicalized to "vs" for regex matching
+        query = "Compare Python versus JavaScript"
+        slots = self.extractor.extract_slots(query, AgentIntent.COMPARE)
+        
+        assert "Python" in slots.keywords
+        assert "JavaScript" in slots.keywords
+        
+        # Test that "vs." is also canonicalized
+        query = "Compare Python vs. JavaScript"
+        slots = self.extractor.extract_slots(query, AgentIntent.COMPARE)
+        
+        assert "Python" in slots.keywords
+        assert "JavaScript" in slots.keywords 
