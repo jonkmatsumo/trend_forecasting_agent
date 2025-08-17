@@ -6,6 +6,7 @@ Supports dual-view normalization: loose for keywords, strict for regex slots.
 
 import re
 import unicodedata
+import functools
 from typing import Optional, Tuple, Dict
 
 try:
@@ -33,7 +34,7 @@ _WS_RE = re.compile(r'\s+')  # Standard whitespace collapse
 _TRIM_RE = re.compile(r'^[\s\.,;:!?(){}\[\]"\']+|[\s\.,;:!?(){}\[\]"\']+$')
 
 # Link protection patterns for URLs and emails
-_LINK_HEAD_RE = re.compile(r'^\s*((?:https?://|www\.|[^\s@\.,;:!?(){}[\]"\']+@[^\s@\.,;:!?(){}[\]"\']+\.[^\s@\.,;:!?(){}[\]"\']+))(?=[\s\.,;:!?(){}\[\]"\']|$)')
+_LINK_HEAD_RE = re.compile(r'^\s*((?:https?://[^\s\.,;:!?(){}[\]"\']+|www\.[^\s\.,;:!?(){}[\]"\']+|[^\s@\.,;:!?(){}[\]"\']+@[^\s@\.,;:!?(){}[\]"\']+\.[^\s@\.,;:!?(){}[\]"\']+))(?=[\s\.,;:!?(){}\[\]"\']|$)')
 
 # Emoji detection pattern
 _EMOJI_RE = re.compile(r'[\U0001F300-\U0001FAFF]')
@@ -44,6 +45,9 @@ CHAR_MAP = {
     "\u201C": '"', "\u201D": '"',   # " "
     "\u2013": "-", "\u2014": "-",   # – —
 }
+
+# Cache configuration
+DEFAULT_CACHE_SIZE = 1024
 
 
 
@@ -145,13 +149,13 @@ def _restore_head_entity(s: str, entity: Optional[str], trailing_punct: Optional
     return s.replace(placeholder, entity, 1)
 
 
-def normalize_views(text: str, 
-                   *, 
-                   trim_punctuation: bool = True, 
-                   canonicalize_vs: bool = True, 
-                   casefold_strict: bool = True,
-                   protect_links: bool = False,
-                   emoji_policy: str = "keep") -> Tuple[str, str, Dict]:
+def _normalize_views_impl(text: str, 
+                         *, 
+                         trim_punctuation: bool = True, 
+                         canonicalize_vs: bool = True, 
+                         casefold_strict: bool = True,
+                         protect_links: bool = False,
+                         emoji_policy: str = "keep") -> Tuple[str, str, Dict]:
     """
     Normalize text with dual-view approach: loose for keywords, strict for regex slots.
     
@@ -233,9 +237,132 @@ def normalize_views(text: str,
         "emoji_library_used": EMOJI_AVAILABLE and emoji_policy == "map",
         "loose_length": len(norm_loose),
         "strict_length": len(s),
+        "cache_hit": False,  # This will be updated by the cached wrapper
+        "cache_size": DEFAULT_CACHE_SIZE,
     })
     
     return norm_loose, s, stats
+
+
+def _normalize_views_cached(text: str, 
+                           trim_punctuation: bool, 
+                           canonicalize_vs: bool, 
+                           casefold_strict: bool,
+                           protect_links: bool,
+                           emoji_policy: str) -> Tuple[str, str, Dict]:
+    """
+    Cached version of normalize_views implementation.
+    
+    Note: This function uses a tuple of parameters as the cache key.
+    """
+    result = _normalize_views_impl(
+        text,
+        trim_punctuation=trim_punctuation,
+        canonicalize_vs=canonicalize_vs,
+        casefold_strict=casefold_strict,
+        protect_links=protect_links,
+        emoji_policy=emoji_policy
+    )
+    
+    # Update cache statistics and create a copy to avoid modifying cached objects
+    loose, strict, stats = result
+    stats_copy = stats.copy()
+    stats_copy["cache_info"] = _normalize_views_cached.cache_info()
+    
+    return loose, strict, stats_copy
+
+# Apply LRU cache decorator
+_normalize_views_cached = functools.lru_cache(maxsize=DEFAULT_CACHE_SIZE)(_normalize_views_cached)
+
+
+def get_cache_info() -> Dict:
+    """
+    Get cache statistics for the text normalizer.
+    
+    Returns:
+        Dictionary with cache statistics including hits, misses, and current size
+    """
+    cache_info = _normalize_views_cached.cache_info()
+    return {
+        "hits": cache_info.hits,
+        "misses": cache_info.misses,
+        "maxsize": cache_info.maxsize,
+        "currsize": cache_info.currsize,
+        "hit_rate": cache_info.hits / (cache_info.hits + cache_info.misses) if (cache_info.hits + cache_info.misses) > 0 else 0.0
+    }
+
+
+def clear_cache() -> None:
+    """
+    Clear the text normalizer cache.
+    
+    This can be useful for memory management or testing purposes.
+    """
+    _normalize_views_cached.cache_clear()
+
+
+def normalize_views(text: str, 
+                   *, 
+                   trim_punctuation: bool = True, 
+                   canonicalize_vs: bool = True, 
+                   casefold_strict: bool = True,
+                   protect_links: bool = False,
+                   emoji_policy: str = "keep") -> Tuple[str, str, Dict]:
+    """
+    Normalize text with dual-view approach: loose for keywords, strict for regex slots.
+    
+    This function uses LRU caching for improved performance when the same text
+    is normalized multiple times with the same parameters.
+    
+    Args:
+        text: Input text to normalize
+        trim_punctuation: Whether to trim leading/trailing punctuation in strict view
+        canonicalize_vs: Whether to normalize "versus" variants to "vs" in strict view
+        casefold_strict: Whether to apply case folding in strict view
+        protect_links: Whether to protect leading URLs/emails from edge trimming
+        emoji_policy: Policy for handling emojis ("keep", "strip", "map")
+        
+    Returns:
+        Tuple of (norm_loose, norm_strict, stats)
+        - norm_loose: Repaired Unicode, standardized punctuation/whitespace (good for keywords)
+        - norm_strict: norm_loose + casefold, versus→vs, optional edge-punct trim (good for regex slots)
+        - stats: Normalization statistics and flags
+    """
+    # Handle empty text case (not cached)
+    if not text:
+        stats = get_normalization_stats(text, text)
+        stats.update({
+            "cache_hit": False,
+            "cache_size": DEFAULT_CACHE_SIZE,
+            "cache_info": _normalize_views_cached.cache_info()
+        })
+        return text, text, stats
+    
+    # Get cache info before call to detect cache hit/miss
+    cache_info_before = _normalize_views_cached.cache_info()
+    misses_before = cache_info_before.misses
+    
+    # Use cached implementation
+    result = _normalize_views_cached(
+        text,
+        trim_punctuation,
+        canonicalize_vs,
+        casefold_strict,
+        protect_links,
+        emoji_policy
+    )
+    
+    # Check if this was a cache miss by comparing miss count
+    cache_info_after = _normalize_views_cached.cache_info()
+    was_cache_miss = cache_info_after.misses > misses_before
+    
+    # Update the cache_hit flag based on whether it was a miss
+    loose, strict, stats = result
+    # Create a copy to avoid modifying the cached stats object
+    stats_copy = stats.copy()
+    stats_copy["cache_hit"] = not was_cache_miss
+    
+    return loose, strict, stats_copy
 
 
 def normalize_with_ftfy(text: str, 
@@ -433,4 +560,21 @@ class TextNormalizer:
             protect_links=self.protect_links,
             emoji_policy=self.emoji_policy
         )
-        return strict 
+        return strict
+    
+    def get_cache_info(self) -> Dict:
+        """
+        Get cache statistics for this normalizer instance.
+        
+        Returns:
+            Dictionary with cache statistics
+        """
+        return get_cache_info()
+    
+    def clear_cache(self) -> None:
+        """
+        Clear the text normalizer cache.
+        
+        This can be useful for memory management or testing purposes.
+        """
+        clear_cache()
