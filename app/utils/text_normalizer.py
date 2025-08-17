@@ -15,6 +15,13 @@ except ImportError:
     FTFY_AVAILABLE = False
     ftfy = None
 
+try:
+    import emoji
+    EMOJI_AVAILABLE = True
+except ImportError:
+    EMOJI_AVAILABLE = False
+    emoji = None
+
 # Character cleanup patterns
 _ZERO_WIDTH_RE = re.compile(r'[\u200B-\u200D\u2060\uFEFF]')
 _CONTROL_RE = re.compile(r'[\u0000-\u0008\u000B-\u000C\u000E-\u001F\u007F]')  # Exclude \t, \n, \r
@@ -28,6 +35,9 @@ _TRIM_RE = re.compile(r'^[\s\.,;:!?(){}\[\]"\']+|[\s\.,;:!?(){}\[\]"\']+$')
 # Link protection patterns for URLs and emails
 _LINK_HEAD_RE = re.compile(r'^\s*((?:https?://|www\.|[^\s@\.,;:!?(){}[\]"\']+@[^\s@\.,;:!?(){}[\]"\']+\.[^\s@\.,;:!?(){}[\]"\']+))(?=[\s\.,;:!?(){}\[\]"\']|$)')
 
+# Emoji detection pattern
+_EMOJI_RE = re.compile(r'[\U0001F300-\U0001FAFF]')
+
 # Smart punctuation mapping
 CHAR_MAP = {
     "\u2018": "'", "\u2019": "'",   # ' '
@@ -36,9 +46,57 @@ CHAR_MAP = {
 }
 
 
+
+
 def _map_chars(s: str) -> str:
     """Map smart punctuation to ASCII equivalents."""
     return ''.join(CHAR_MAP.get(ch, ch) for ch in s)
+
+
+def _process_emojis(s: str, emoji_policy: str = "keep") -> str:
+    """
+    Process emojis according to the specified policy using the emoji library.
+    
+    Args:
+        s: Input string that may contain emojis
+        emoji_policy: Policy for handling emojis ("keep", "strip", "map")
+        
+    Returns:
+        String with emojis processed according to policy
+        
+    Raises:
+        ValueError: If emoji_policy is not one of the allowed values
+    """
+    if emoji_policy not in ["keep", "strip", "map"]:
+        raise ValueError(f"Invalid emoji_policy: {emoji_policy}. Must be one of: keep, strip, map")
+    
+    if emoji_policy == "keep":
+        return s
+    elif emoji_policy == "strip":
+        # Replace emojis with a space to preserve spacing
+        result = _EMOJI_RE.sub(" ", s)
+        # Ensure leading space is preserved if emoji was at start
+        if s and _EMOJI_RE.match(s[0]):
+            result = " " + result.lstrip()
+        return result
+    elif emoji_policy == "map":
+        if EMOJI_AVAILABLE:
+            # Use emoji library for comprehensive emoji handling
+            # First, demojize to get emoji names like :chart_increasing:
+            result = emoji.demojize(s)
+            # Convert emoji names to readable text by removing colons and replacing underscores with spaces
+            result = re.sub(r':([^:]+):', lambda m: m.group(1).replace('_', ' '), result)
+
+            # Clean up any double spaces that might have been created
+            result = " ".join(result.split())
+            return result
+        else:
+            # If emoji library is not available, fall back to stripping emojis
+            result = _EMOJI_RE.sub(" ", s)
+            # Ensure leading space is preserved if emoji was at start
+            if s and _EMOJI_RE.match(s[0]):
+                result = " " + result.lstrip()
+            return result
 
 
 def _protect_head_entity(s: str) -> Tuple[str, Optional[str], Optional[str]]:
@@ -92,7 +150,8 @@ def normalize_views(text: str,
                    trim_punctuation: bool = True, 
                    canonicalize_vs: bool = True, 
                    casefold_strict: bool = True,
-                   protect_links: bool = False) -> Tuple[str, str, Dict]:
+                   protect_links: bool = False,
+                   emoji_policy: str = "keep") -> Tuple[str, str, Dict]:
     """
     Normalize text with dual-view approach: loose for keywords, strict for regex slots.
     
@@ -102,6 +161,7 @@ def normalize_views(text: str,
         canonicalize_vs: Whether to normalize "versus" variants to "vs" in strict view
         casefold_strict: Whether to apply case folding in strict view
         protect_links: Whether to protect leading URLs/emails from edge trimming
+        emoji_policy: Policy for handling emojis ("keep", "strip", "map")
         
     Returns:
         Tuple of (norm_loose, norm_strict, stats)
@@ -124,6 +184,11 @@ def normalize_views(text: str,
         t = ftfy.fix_text(t)
     t = unicodedata.normalize("NFKC", t)
     t = _map_chars(t)
+    
+    # Apply emoji processing (applied to both views)
+    t = _process_emojis(t, emoji_policy)
+    
+    # Apply whitespace normalization after emoji processing
     t = _WS_RE.sub(" ", t).strip()
     
     # Loose view: keep case and edge punctuation
@@ -163,6 +228,9 @@ def normalize_views(text: str,
         "trim_punctuation": trim_punctuation,
         "canon_vs": canonicalize_vs,
         "protect_links": protect_links,
+        "emoji_policy": emoji_policy,
+        "had_emojis": bool(_EMOJI_RE.search(original)),
+        "emoji_library_used": EMOJI_AVAILABLE and emoji_policy == "map",
         "loose_length": len(norm_loose),
         "strict_length": len(s),
     })
@@ -174,7 +242,8 @@ def normalize_with_ftfy(text: str,
                        casefold: bool = True,
                        canonicalize_vs: bool = True,
                        trim_punctuation: bool = True,
-                       protect_links: bool = False) -> str:
+                       protect_links: bool = False,
+                       emoji_policy: str = "keep") -> str:
     """
     Normalize text for robust regex/rule matching while preserving meaning.
     
@@ -187,6 +256,7 @@ def normalize_with_ftfy(text: str,
         canonicalize_vs: Whether to normalize "versus" variants to "vs"
         trim_punctuation: Whether to trim leading/trailing punctuation
         protect_links: Whether to protect leading URLs/emails from edge trimming
+        emoji_policy: Policy for handling emojis ("keep", "strip", "map")
         
     Returns:
         Normalized text suitable for intent recognition (strict view)
@@ -197,7 +267,8 @@ def normalize_with_ftfy(text: str,
         trim_punctuation=trim_punctuation,
         canonicalize_vs=canonicalize_vs,
         casefold_strict=casefold,
-        protect_links=protect_links
+        protect_links=protect_links,
+        emoji_policy=emoji_policy
     )
     return strict
 
@@ -246,7 +317,8 @@ class TextNormalizer:
                  casefold: bool = True,
                  canonicalize_vs: bool = True,
                  trim_punctuation: bool = True,
-                 protect_links: bool = False):
+                 protect_links: bool = False,
+                 emoji_policy: str = "keep"):
         """
         Initialize text normalizer.
         
@@ -255,11 +327,13 @@ class TextNormalizer:
             canonicalize_vs: Whether to normalize "versus" variants
             trim_punctuation: Whether to trim leading/trailing punctuation
             protect_links: Whether to protect leading URLs/emails from edge trimming
+            emoji_policy: Policy for handling emojis ("keep", "strip", "map")
         """
         self.casefold = casefold
         self.canonicalize_vs = canonicalize_vs
         self.trim_punctuation = trim_punctuation
         self.protect_links = protect_links
+        self.emoji_policy = emoji_policy
     
     def normalize(self, text: str) -> Tuple[str, Dict]:
         """
@@ -276,7 +350,8 @@ class TextNormalizer:
             trim_punctuation=self.trim_punctuation,
             canonicalize_vs=self.canonicalize_vs,
             casefold_strict=self.casefold,
-            protect_links=self.protect_links
+            protect_links=self.protect_links,
+            emoji_policy=self.emoji_policy
         )
         return strict, stats
     
@@ -295,7 +370,8 @@ class TextNormalizer:
             trim_punctuation=self.trim_punctuation,
             canonicalize_vs=self.canonicalize_vs,
             casefold_strict=self.casefold,
-            protect_links=self.protect_links
+            protect_links=self.protect_links,
+            emoji_policy=self.emoji_policy
         )
         return strict
     
@@ -314,7 +390,8 @@ class TextNormalizer:
             trim_punctuation=self.trim_punctuation,
             canonicalize_vs=self.canonicalize_vs,
             casefold_strict=self.casefold,
-            protect_links=self.protect_links
+            protect_links=self.protect_links,
+            emoji_policy=self.emoji_policy
         )
     
     def normalize_for_keywords(self, text: str) -> str:
@@ -333,6 +410,7 @@ class TextNormalizer:
             trim_punctuation=False,  # keep edges for keyword quotes
             canonicalize_vs=False,   # keyword text shouldn't be altered semantically
             casefold_strict=False,
+            emoji_policy=self.emoji_policy
         )
         return loose
     
@@ -352,6 +430,7 @@ class TextNormalizer:
             trim_punctuation=self.trim_punctuation,
             canonicalize_vs=self.canonicalize_vs,
             casefold_strict=self.casefold,
-            protect_links=self.protect_links
+            protect_links=self.protect_links,
+            emoji_policy=self.emoji_policy
         )
         return strict 

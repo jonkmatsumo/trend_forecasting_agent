@@ -569,4 +569,156 @@ class TestIntegrationScenarios:
         assert stats["dashes_fixed"] is True
         assert stats["quotes_fixed"] is True
         assert stats["trim_punctuation"] is True
-        assert stats["ws_collapsed"] is True 
+        assert stats["ws_collapsed"] is True
+
+
+class TestEmojiPolicy:
+    """Test emoji policy functionality."""
+    
+    def test_emoji_keep_policy(self):
+        """Test emoji keep policy (default)."""
+        text = "🔥 stock"
+        loose, strict, stats = normalize_views(text, emoji_policy="keep")
+        
+        assert loose == "🔥 stock"
+        assert strict == "🔥 stock"
+        assert stats["emoji_policy"] == "keep"
+        assert stats["had_emojis"] is True
+    
+    def test_emoji_strip_policy(self):
+        """Test emoji strip policy."""
+        text = "🔥 stock"
+        loose, strict, stats = normalize_views(text, emoji_policy="strip")
+        
+        assert loose == "stock"
+        assert strict == "stock"
+        assert stats["emoji_policy"] == "strip"
+        assert stats["had_emojis"] is True
+    
+    def test_emoji_map_policy(self):
+        """Test emoji map policy."""
+        text = "🔥 stock"
+        loose, strict, stats = normalize_views(text, emoji_policy="map")
+        
+        assert loose == "fire stock"
+        assert strict == "fire stock"
+        assert stats["emoji_policy"] == "map"
+        assert stats["had_emojis"] is True
+    
+    def test_emoji_map_policy_multiple(self):
+        """Test emoji map policy with multiple emojis."""
+        text = "📈 trend 🔥 stock"
+        loose, strict, stats = normalize_views(text, emoji_policy="map")
+        
+        assert loose == "chart increasing trend fire stock"
+        assert strict == "chart increasing trend fire stock"
+        assert stats["emoji_policy"] == "map"
+        assert stats["had_emojis"] is True
+    
+    def test_emoji_map_policy_unmapped(self):
+        """Test emoji map policy with unmapped emojis."""
+        text = "🔥 stock 🎵 music"
+        loose, strict, stats = normalize_views(text, emoji_policy="map")
+        
+        # 🎵 should be mapped to "musical note" by the emoji library
+        assert loose == "fire stock musical note music"
+        assert strict == "fire stock musical note music"
+        assert stats["emoji_policy"] == "map"
+        assert stats["had_emojis"] is True
+    
+    def test_emoji_policy_default(self):
+        """Test that emoji policy defaults to keep."""
+        text = "🔥 stock"
+        loose, strict, stats = normalize_views(text)
+        
+        assert loose == "🔥 stock"
+        assert strict == "🔥 stock"
+        assert stats["emoji_policy"] == "keep"
+        assert stats["had_emojis"] is True
+    
+    def test_emoji_policy_invalid(self):
+        """Test that invalid emoji policy raises ValueError."""
+        text = "🔥 stock"
+        
+        with pytest.raises(ValueError, match="Invalid emoji_policy"):
+            normalize_views(text, emoji_policy="invalid")
+    
+    def test_emoji_with_normalization(self):
+        """Test emoji processing with other normalizations."""
+        text = "🔥 STOCK!!!"
+        loose, strict, stats = normalize_views(text, emoji_policy="map", trim_punctuation=True)
+        
+        assert loose == "fire STOCK!!!"
+        assert strict == "fire stock"
+        assert stats["emoji_policy"] == "map"
+        assert stats["had_emojis"] is True
+        assert stats["trim_punctuation"] is True
+    
+    def test_no_emojis(self):
+        """Test text without emojis."""
+        text = "normal text"
+        loose, strict, stats = normalize_views(text, emoji_policy="map")
+        
+        assert loose == "normal text"
+        assert strict == "normal text"
+        assert stats["emoji_policy"] == "map"
+        assert stats["had_emojis"] is False
+    
+    def test_emoji_with_links(self):
+        """Test emoji processing with link protection."""
+        text = "🔥 https://example.com."
+        loose, strict, stats = normalize_views(text, emoji_policy="map", protect_links=True)
+        
+        assert loose == "fire https://example.com."
+        assert strict == "fire https://example.com"
+        assert stats["emoji_policy"] == "map"
+        assert stats["had_emojis"] is True
+        assert stats["protect_links"] is True
+    
+    def test_emoji_with_versus_canonicalization(self):
+        """Test emoji processing with versus canonicalization."""
+        text = "🔥 stock versus bonds"
+        loose, strict, stats = normalize_views(text, emoji_policy="map", canonicalize_vs=True)
+        
+        assert loose == "fire stock versus bonds"
+        assert strict == "fire stock vs bonds"
+        assert stats["emoji_policy"] == "map"
+        assert stats["had_emojis"] is True
+        assert stats["canon_vs"] is True
+    
+    def test_emoji_with_text_normalizer_class(self):
+        """Test emoji processing with TextNormalizer class."""
+        normalizer = TextNormalizer(emoji_policy="map")
+        text = "🔥 stock"
+        result, stats = normalizer.normalize(text)
+        
+        assert result == "fire stock"
+        assert stats["emoji_policy"] == "map"
+        assert stats["had_emojis"] is True
+    
+    def test_emoji_with_normalize_with_ftfy(self):
+        """Test emoji processing with normalize_with_ftfy function."""
+        text = "🔥 stock"
+        result = normalize_with_ftfy(text, emoji_policy="map")
+        
+        assert result == "fire stock"
+    
+    def test_emoji_edge_cases(self):
+        """Test emoji processing with edge cases."""
+        # Test with only emoji
+        text = "🔥"
+        loose, strict, stats = normalize_views(text, emoji_policy="map")
+        assert loose == "fire"
+        assert strict == "fire"
+        
+        # Test with emoji at start and end
+        text = "🔥 stock 📈"
+        loose, strict, stats = normalize_views(text, emoji_policy="map")
+        assert loose == "fire stock chart increasing"
+        assert strict == "fire stock chart increasing"
+        
+        # Test with multiple consecutive emojis
+        text = "🔥📈💰"
+        loose, strict, stats = normalize_views(text, emoji_policy="map")
+        assert loose == "firechart increasingmoney bag"
+        assert strict == "firechart increasingmoney bag" 
