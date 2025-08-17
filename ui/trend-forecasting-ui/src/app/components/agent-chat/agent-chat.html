@@ -1,0 +1,65 @@
+<div class="chat-container">
+  <div class="chat-header">
+    <h2>Trend Forecasting Agent</h2>
+    <p>Ask me about trends, forecasts, or model training</p>
+  </div>
+
+  <div class="messages-container" #chatContainer>
+    <div *ngFor="let message of messages" 
+         class="message" 
+         [ngClass]="'message--' + message.type">
+      
+      <div class="message-content">
+        <div class="message-text">{{ message.text }}</div>
+        
+        <div *ngIf="message.data" class="message-data">
+          <pre>{{ message.data | json }}</pre>
+        </div>
+        
+        <div *ngIf="message.metadata" class="message-metadata">
+          <small>Confidence: {{ message.metadata.confidence | percent }}</small>
+        </div>
+      </div>
+      
+      <div class="message-timestamp">
+        {{ message.timestamp | date:'shortTime' }}
+      </div>
+    </div>
+
+    <div *ngIf="isLoading" class="message message--agent">
+      <div class="message-content">
+        <div class="typing-indicator">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-container">
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Ask a question...</mat-label>
+      <textarea matInput 
+                [formControl]="queryControl"
+                placeholder="e.g., How will machine learning trend next week?"
+                rows="3"
+                (keydown.enter)="handleKeyDown($event)">
+      </textarea>
+      <mat-error *ngIf="queryControl.hasError('required')">
+        Please enter a question
+      </mat-error>
+      <mat-error *ngIf="queryControl.hasError('maxlength')">
+        Question too long (max 1000 characters)
+      </mat-error>
+    </mat-form-field>
+    
+    <button mat-raised-button 
+            color="primary"
+            [disabled]="queryControl.invalid || isLoading"
+            (click)="sendMessage()">
+      <mat-icon>send</mat-icon>
+      Send
+    </button>
+  </div>
+</div>

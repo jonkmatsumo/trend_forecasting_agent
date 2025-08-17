@@ -1,0 +1,103 @@
+<div class="api-tester-container">
+  <div class="sidebar">
+    <h3>API Endpoints</h3>
+    <div class="endpoint-list">
+      <div *ngFor="let endpoint of endpoints"
+           class="endpoint-item"
+           [ngClass]="{'active': selectedEndpoint === endpoint}"
+           (click)="selectEndpoint(endpoint)">
+        <div class="endpoint-method" [ngClass]="'method--' + endpoint.method.toLowerCase()">
+          {{ endpoint.method }}
+        </div>
+        <div class="endpoint-info">
+          <div class="endpoint-name">{{ endpoint.name }}</div>
+          <div class="endpoint-path">{{ endpoint.path }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="request-section">
+      <h3>Request Configuration</h3>
+      
+      <form [formGroup]="requestForm" class="request-form">
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Base URL</mat-label>
+            <input matInput formControlName="baseUrl">
+          </mat-form-field>
+          
+          <mat-form-field appearance="outline">
+            <mat-label>Path</mat-label>
+            <input matInput formControlName="path">
+          </mat-form-field>
+          
+          <mat-form-field appearance="outline">
+            <mat-label>Method</mat-label>
+            <mat-select formControlName="method">
+              <mat-option value="GET">GET</mat-option>
+              <mat-option value="POST">POST</mat-option>
+              <mat-option value="PUT">PUT</mat-option>
+              <mat-option value="DELETE">DELETE</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Headers</mat-label>
+            <textarea matInput formControlName="headers" rows="3"></textarea>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row" *ngIf="requestForm.value.method !== 'GET'">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Request Body</mat-label>
+            <textarea matInput formControlName="body" rows="10"></textarea>
+          </mat-form-field>
+        </div>
+
+        <div class="form-actions">
+          <button mat-raised-button 
+                  color="primary"
+                  [disabled]="requestForm.invalid || isLoading"
+                  (click)="sendRequest()">
+            <mat-icon>send</mat-icon>
+            Send Request
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="response-section" *ngIf="response || error">
+      <h3>Response</h3>
+      
+      <div *ngIf="error" class="error-message">
+        <mat-icon>error</mat-icon>
+        {{ error }}
+      </div>
+
+      <div *ngIf="response" class="response-content">
+        <div class="response-header">
+          <span class="status-code" [ngClass]="'status--' + (response.status < 400 ? 'success' : 'error')">
+            {{ response.status }}
+          </span>
+          <span class="response-time">{{ response.responseTime }}ms</span>
+        </div>
+
+        <div class="response-body">
+          <div class="response-tabs">
+            <button mat-button [class.active]="true">Response</button>
+            <button mat-button (click)="copyToClipboard(formatJson(response))">
+              <mat-icon>content_copy</mat-icon>
+              Copy
+            </button>
+          </div>
+          
+          <pre class="response-json">{{ formatJson(response.data) }}</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
