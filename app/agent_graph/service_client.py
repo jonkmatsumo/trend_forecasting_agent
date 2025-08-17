@@ -8,8 +8,8 @@ from typing import Dict, List, Optional, Any, Protocol
 import logging
 
 from app.services.forecaster_interface import ForecasterServiceInterface
-from .http.http_client import HTTPClient
-from .http.http_config import HTTPClientConfig, load_http_config
+from app.client.http.http_client import HTTPClient
+from app.client.http.http_config import HTTPClientConfig, load_http_config
 
 
 class ForecasterClient(Protocol):

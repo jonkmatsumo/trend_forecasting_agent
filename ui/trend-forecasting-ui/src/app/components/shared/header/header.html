@@ -1,0 +1,26 @@
+<mat-toolbar color="primary" class="header-toolbar">
+  <div class="toolbar-content">
+    <div class="logo">
+      <mat-icon>trending_up</mat-icon>
+      <span class="app-title">Trend Forecasting Agent</span>
+    </div>
+    
+    <nav class="navigation">
+      <a mat-button 
+         routerLink="/agent-chat" 
+         routerLinkActive="active"
+         [class.active]="isActive('/agent-chat')">
+        <mat-icon>chat</mat-icon>
+        Agent Chat
+      </a>
+      
+      <a mat-button 
+         routerLink="/api-tester" 
+         routerLinkActive="active"
+         [class.active]="isActive('/api-tester')">
+        <mat-icon>api</mat-icon>
+        API Tester
+      </a>
+    </nav>
+  </div>
+</mat-toolbar>
