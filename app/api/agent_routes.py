@@ -15,6 +15,7 @@ from app.services.agent.agent_service import AgentService
 from app.config.adapter_config import create_adapter
 from app.utils.request_context import request_context_manager, get_current_request_id
 from app.utils.structured_logger import create_structured_logger
+from app.utils.error_handlers import ValidationError, ModelError, APIError
 
 # Create blueprint
 agent_bp = Blueprint('agent', __name__)
@@ -140,13 +141,73 @@ def ask_agent():
             # Return response
             return jsonify(response.to_dict()), 200
     
-    except Exception as e:
-        # Calculate duration
+    except ValidationError as e:
+        # Handle validation errors from the agent service
         duration = (datetime.utcnow() - start_time).total_seconds()
         
-        # Log error
+        logger.logger.warning(
+            f"Validation error in agent ask endpoint: {str(e)}",
+            extra={
+                'request_id': get_current_request_id(),
+                'error_type': 'ValidationError',
+                'field': getattr(e, 'field', 'unknown'),
+                'duration_ms': round(duration * 1000, 2)
+            }
+        )
+        
+        return jsonify(create_agent_error(
+            error_code="VALIDATION_ERROR",
+            message=str(e),
+            details={"field": getattr(e, 'field', 'unknown')} if current_app.debug else None,
+            request_id=get_current_request_id()
+        ).to_dict()), 400
+        
+    except ModelError as e:
+        # Handle model-related errors
+        duration = (datetime.utcnow() - start_time).total_seconds()
+        
         logger.logger.error(
-            f"Error in agent ask endpoint: {str(e)}",
+            f"Model error in agent ask endpoint: {str(e)}",
+            extra={
+                'request_id': get_current_request_id(),
+                'error_type': 'ModelError',
+                'duration_ms': round(duration * 1000, 2)
+            }
+        )
+        
+        return jsonify(create_agent_error(
+            error_code="MODEL_ERROR",
+            message="A model-related error occurred while processing your request",
+            details={"error": str(e)} if current_app.debug else None,
+            request_id=get_current_request_id()
+        ).to_dict()), 500
+        
+    except APIError as e:
+        # Handle API-related errors
+        duration = (datetime.utcnow() - start_time).total_seconds()
+        
+        logger.logger.error(
+            f"API error in agent ask endpoint: {str(e)}",
+            extra={
+                'request_id': get_current_request_id(),
+                'error_type': 'APIError',
+                'duration_ms': round(duration * 1000, 2)
+            }
+        )
+        
+        return jsonify(create_agent_error(
+            error_code="API_ERROR",
+            message="An API error occurred while processing your request",
+            details={"error": str(e)} if current_app.debug else None,
+            request_id=get_current_request_id()
+        ).to_dict()), 500
+    
+    except Exception as e:
+        # Handle all other errors
+        duration = (datetime.utcnow() - start_time).total_seconds()
+        
+        logger.logger.error(
+            f"Unexpected error in agent ask endpoint: {str(e)}",
             extra={
                 'request_id': get_current_request_id(),
                 'error_type': type(e).__name__,
@@ -155,7 +216,6 @@ def ask_agent():
             exc_info=True
         )
         
-        # Return error response
         return jsonify(create_agent_error(
             error_code="INTERNAL_ERROR",
             message="An internal error occurred while processing your request",
@@ -183,8 +243,10 @@ def agent_health():
                 'natural_language_processing',
                 'intent_recognition',
                 'slot_extraction',
-                'forecaster_integration'
-            ]
+                'forecaster_integration',
+                'langgraph_orchestration'
+            ],
+            'implementation': 'langgraph'
         }), 200
         
     except Exception as e:
@@ -205,6 +267,7 @@ def agent_capabilities():
     """
     return jsonify({
         'capabilities': {
+            'implementation': 'langgraph',
             'intents': [
                 {
                     'name': 'forecast',
@@ -243,6 +306,12 @@ def agent_capabilities():
                     'supported': True
                 },
                 {
+                    'name': 'list_models',
+                    'description': 'List available models',
+                    'keywords': ['list', 'models', 'available'],
+                    'supported': True
+                },
+                {
                     'name': 'cache_stats',
                     'description': 'Get cache statistics',
                     'keywords': ['cache', 'stats', 'statistics'],
@@ -266,6 +335,12 @@ def agent_capabilities():
                 'metadata': 'Processing metadata',
                 'timestamp': 'ISO timestamp',
                 'request_id': 'Unique request identifier'
+            },
+            'error_handling': {
+                'validation_errors': 'Query validation failures',
+                'execution_errors': 'Processing failures',
+                'model_errors': 'Model-related issues',
+                'api_errors': 'API-related issues'
             }
         },
         'timestamp': datetime.utcnow().isoformat()

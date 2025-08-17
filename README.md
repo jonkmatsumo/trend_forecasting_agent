@@ -2,9 +2,9 @@
 
 An intelligent forecasting system that combines natural language understanding with state-of-the-art time series forecasting to provide quantile predictions for keyword popularity trends.
 
-## 🤖 Agentic Capabilities
+## 🤖 Agentic Interface with LangGraph
 
-The system features a **hybrid intent recognizer** that understands natural language queries and routes them to appropriate forecasting services. Users can interact with the system using conversational language instead of learning specific API endpoints.
+The system features a **powerful agentic interface** built with LangGraph that understands natural language queries and orchestrates complex workflows. Users can interact with the system using conversational language, making it accessible to non-technical users while still supporting traditional API endpoints for developers.
 
 ### Natural Language Interface
 
@@ -17,10 +17,15 @@ Ask questions like:
 - *"Forecast 'python programming' trends in United States for next month with p10/p50/p90"*
 
 The system automatically:
-1. **Recognizes your intent** using semantic similarity and pattern matching
+1. **Recognizes your intent** using advanced natural language processing
 2. **Extracts relevant information** from your query (keywords, time horizons, quantiles, locations)
-3. **Routes to appropriate services** for forecasting, comparison, or analysis
+3. **Orchestrates complex workflows** using LangGraph for reliable execution
 4. **Returns natural language responses** with actionable insights
+
+### Dual Interface Support
+
+- **Conversational Interface**: Perfect for non-technical users who want to interact naturally
+- **Traditional REST API**: Available for developers who prefer structured endpoints
 
 ## 🏗️ Architecture Overview
 
@@ -28,28 +33,33 @@ The system automatically:
 
 ```
 app/
+├── agent_graph/              # LangGraph orchestration
+│   ├── graph.py              # Main workflow graph
+│   ├── nodes.py              # Individual processing nodes
+│   ├── state.py              # State management
+│   └── service_client.py     # Service integration
 ├── api/
-│   ├── agent_routes.py      # Natural language agent interface
-│   └── routes.py            # Traditional REST API endpoints
+│   ├── agent_routes.py       # Natural language agent interface
+│   └── routes.py             # Traditional REST API endpoints
 ├── services/
-│   ├── agent/               # Natural language processing
-│   │   ├── agent_service.py
-│   │   ├── intent_recognizer.py  # Hybrid semantic + regex recognizer
-│   │   ├── slot_extractor.py     # Advanced parameter extraction
+│   ├── agent/                # Natural language processing
+│   │   ├── agent_service.py  # LangGraph-based agent service
+│   │   ├── intent_recognizer.py
+│   │   ├── slot_extractor.py
 │   │   └── validators.py
-│   ├── darts/               # Time series forecasting
+│   ├── darts/                # Time series forecasting
 │   │   ├── training_service.py
 │   │   ├── evaluation_service.py
 │   │   └── prediction_service.py
-│   └── pytrends/            # Google Trends data
+│   └── pytrends/             # Google Trends data
 │       └── trends_service.py
 ├── models/
-│   ├── agent_models.py      # Agent data models
-│   ├── darts/               # Forecasting models
-│   └── pytrends/            # Trends data models
+│   ├── agent_models.py       # Agent data models
+│   ├── darts/                # Forecasting models
+│   └── pytrends/             # Trends data models
 └── config/
-    ├── agent_config.py      # Agent configuration
-    └── config.py            # General configuration
+    ├── agent_config.py       # Agent configuration
+    └── config.py             # General configuration
 ```
 
 ## 🚀 Quick Start
@@ -74,7 +84,7 @@ app/
 
 4. **Test the agent interface:**
    ```bash
-   curl -X POST http://localhost:5000/api/agent/query \
+   curl -X POST http://localhost:5000/agent/ask \
      -H "Content-Type: application/json" \
      -d '{"query": "How will AI trend next week?"}'
    ```
@@ -85,31 +95,23 @@ app/
 docker-compose up --build
 ```
 
-## 🧠 Intelligent Intent Recognition
+## 🧠 LangGraph-Powered Intelligence
 
-The system uses a **hybrid approach** combining:
+The system uses **LangGraph** for robust workflow orchestration:
 
-### Semantic Understanding (60% weight)
-- **TF-IDF vectors** for semantic similarity
-- **Cosine similarity** to match user queries to intent examples
-- **Handles paraphrases** and natural language variations
-- **Case-insensitive processing** for robust matching
+### Workflow Orchestration
+- **State Management**: Maintains context throughout complex workflows
+- **Error Handling**: Graceful failure recovery and user-friendly error messages
+- **Parallel Processing**: Efficient handling of multiple operations
+- **Validation**: Comprehensive input validation at each step
 
-### Pattern Matching (30% weight)
-- **Regex patterns** as guardrails for precision
-- **Keyword requirements** and exclusions
-- **Confidence boosting** for multiple matches
-- **Advanced text normalization** with punctuation removal
-
-### LLM Integration (10% weight)
-- **Placeholder for future** LLM-based classification
-- **Few-shot learning** capabilities
-- **Tie-breaking** for ambiguous cases
-
-### Confidence Thresholds
-- **High Confidence** (≥ 0.45): Accept intent classification
-- **Low Confidence** (0.25 - 0.45): Return UNKNOWN with clarification
-- **Unknown** (< 0.25): Return UNKNOWN
+### Processing Pipeline
+1. **Query Normalization**: Standardizes input for consistent processing
+2. **Intent Recognition**: Identifies user intent with high accuracy
+3. **Slot Extraction**: Extracts parameters (keywords, dates, quantiles)
+4. **Planning**: Determines optimal execution strategy
+5. **Execution**: Orchestrates service calls and data processing
+6. **Response Formatting**: Delivers natural language responses
 
 ## 🔍 Advanced Slot Extraction
 
@@ -191,7 +193,9 @@ The system intelligently extracts parameters from natural language queries:
 ## 🔧 API Endpoints
 
 ### Agent Interface
-- `POST /api/agent/query` - Natural language query processing
+- `POST /agent/ask` - Natural language query processing
+- `GET /agent/health` - Agent health check
+- `GET /agent/capabilities` - Get supported capabilities
 
 ### Traditional REST API
 - `GET /health` - Health check
@@ -205,22 +209,21 @@ The system intelligently extracts parameters from natural language queries:
 
 ## 🎯 Model Types Supported
 
-The system supports 14+ forecasting models from the Darts library:
+The system supports 13+ forecasting models from the Darts library:
 
 1. **LSTM** - Long Short-Term Memory networks
 2. **TCN** - Temporal Convolutional Networks  
 3. **Transformer** - Attention-based models
-4. **Prophet** - Facebook's forecasting tool
-5. **ARIMA** - Classical statistical forecasting
-6. **Exponential Smoothing** - Smoothing techniques
-7. **Random Forest** - Ensemble methods
-8. **N-BEATS** - Neural basis expansion analysis
-9. **TFT** - Temporal Fusion Transformers
-10. **GRU** - Gated Recurrent Units
-11. **AutoARIMA** - Automatic ARIMA selection
-12. **AutoETS** - Automatic Exponential Smoothing
-13. **AutoTheta** - Automatic Theta model selection
-14. **AutoCES** - Automatic Complex Exponential Smoothing
+4. **ARIMA** - Classical statistical forecasting
+5. **Exponential Smoothing** - Smoothing techniques
+6. **Random Forest** - Ensemble methods
+7. **N-BEATS** - Neural basis expansion analysis
+8. **TFT** - Temporal Fusion Transformers
+9. **GRU** - Gated Recurrent Units
+10. **AutoARIMA** - Automatic ARIMA selection
+11. **AutoETS** - Automatic Exponential Smoothing
+12. **AutoTheta** - Automatic Theta model selection
+13. **AutoCES** - Automatic Complex Exponential Smoothing
 
 ## 📈 Performance
 
@@ -245,22 +248,20 @@ The system supports 14+ forecasting models from the Darts library:
 
 ### Testing
 ```bash
-# Run all tests (392 tests)
+# Run all tests
 pytest
 
 # Run specific test suites
 python -m pytest tests/unit/ -v
-python -m pytest tests/unit/darts/ -v
-python -m pytest tests/unit/pytrends/ -v
 python -m pytest tests/integration/ -v
 ```
 
 ### Active Learning
 The intent recognizer supports continuous improvement:
 ```python
-from app.services.agent.intent_recognizer import HybridIntentRecognizer
+from app.services.agent.intent_recognizer import IntentRecognizer
 
-recognizer = HybridIntentRecognizer()
+recognizer = IntentRecognizer()
 recognizer.add_example("What's the future of blockchain?", AgentIntent.FORECAST)
 ```
 
@@ -298,10 +299,10 @@ chmod +x scripts/deployment/*.sh
 
 The system is designed for extensibility:
 - **Modular architecture** for easy feature additions
-- **Comprehensive testing** for reliability (392 tests passing)
+- **Comprehensive testing** for reliability
 - **Active learning** for continuous improvement
 - **MLflow integration** for model management
-- **Hybrid intent recognition** for robust natural language understanding
+- **LangGraph orchestration** for robust workflow management
 
 ## 📄 License
 

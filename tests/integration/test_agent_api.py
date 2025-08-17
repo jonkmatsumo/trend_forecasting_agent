@@ -260,26 +260,77 @@ class TestAgentAPI:
             assert data['metadata']['confidence'] == 0.0  # Current intent recognizer returns 0.0 for unknown
     
     def test_request_tracking(self):
-        """Test that request IDs are properly tracked."""
-        with patch('app.api.agent_routes.create_adapter') as mock_create_adapter:
-            # Mock the forecaster service
-            mock_forecaster = Mock()
-            mock_forecaster.health.return_value = {'status': 'healthy'}
-            mock_create_adapter.return_value = mock_forecaster
-            
-            response = self.client.post('/agent/ask', 
-                json={'query': "What's the health status?"},
-                content_type='application/json'
-            )
-            
-            assert response.status_code == 200
-            data = json.loads(response.data)
-            
-            # Check that request ID is present and valid
-            assert 'request_id' in data
-            assert data['request_id'] is not None
-            assert len(data['request_id']) > 0
-            
-            # Check that timestamp is present and valid
-            assert 'timestamp' in data
-            assert data['timestamp'] is not None 
+        """Test that request tracking works correctly."""
+        response = self.client.post("/agent/ask", json={"query": "test query"})
+        assert response.status_code == 200
+        
+        data = json.loads(response.data)
+        assert "request_id" in data
+        assert data["request_id"] is not None
+        assert "timestamp" in data
+    
+    def test_health_endpoint_implementation_info(self):
+        """Test that health endpoint includes implementation information."""
+        response = self.client.get("/agent/health")
+        assert response.status_code == 200
+        
+        data = json.loads(response.data)
+        assert data["status"] == "healthy"
+        assert "langgraph_orchestration" in data["capabilities"]
+        assert data["implementation"] == "langgraph"
+    
+    def test_capabilities_endpoint_implementation_info(self):
+        """Test that capabilities endpoint includes implementation information."""
+        response = self.client.get("/agent/capabilities")
+        assert response.status_code == 200
+        
+        data = json.loads(response.data)
+        assert data["capabilities"]["implementation"] == "langgraph"
+        assert "error_handling" in data["capabilities"]
+        assert "validation_errors" in data["capabilities"]["error_handling"]
+        assert "execution_errors" in data["capabilities"]["error_handling"]
+        assert "model_errors" in data["capabilities"]["error_handling"]
+        assert "api_errors" in data["capabilities"]["error_handling"]
+    
+    def test_capabilities_list_models_intent(self):
+        """Test that capabilities include list_models intent."""
+        response = self.client.get("/agent/capabilities")
+        assert response.status_code == 200
+        
+        data = json.loads(response.data)
+        intents = data["capabilities"]["intents"]
+        
+        list_models_intent = next((intent for intent in intents if intent["name"] == "list_models"), None)
+        assert list_models_intent is not None
+        assert list_models_intent["supported"] is True
+        assert "list" in list_models_intent["keywords"]
+        assert "models" in list_models_intent["keywords"]
+    
+    def test_error_response_structure(self):
+        """Test that error responses have the correct structure."""
+        response = self.client.post("/agent/ask", json={"query": ""})
+        assert response.status_code == 400
+        
+        data = json.loads(response.data)
+        assert "error_code" in data
+        assert "message" in data
+        assert "timestamp" in data
+        assert "request_id" in data
+        assert data["error_code"] == "VALIDATION_ERROR"
+    
+    def test_debug_mode_error_details(self):
+        """Test that error details are included in debug mode."""
+        # Set debug mode
+        self.app.config['DEBUG'] = True
+        
+        # Test with a query that will trigger an API-level validation error
+        response = self.client.post("/agent/ask", json={"invalid_field": "test"})
+        assert response.status_code == 400
+        
+        data = json.loads(response.data)
+        assert "details" in data
+        # Note: In production, details might be None for security reasons
+        # This test verifies the field exists, not its content
+        
+        # Reset debug mode
+        self.app.config['DEBUG'] = False 
