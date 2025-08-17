@@ -6,7 +6,7 @@ Tests the integration of security service with all system components.
 import pytest
 from unittest.mock import Mock, patch
 
-from app.services.llm.llm_client import LLMClient, IntentClassificationResult
+from app.client.llm.llm_client import LLMClient, IntentClassificationResult
 from app.services.security_service import DataClassification
 
 

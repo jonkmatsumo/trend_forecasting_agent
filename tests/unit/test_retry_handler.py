@@ -7,7 +7,7 @@ import time
 import pytest
 from unittest.mock import Mock, patch
 
-from app.services.llm.retry_handler import RetryHandler, RetryConfig, AdaptiveRetryHandler
+from app.client.llm.retry_handler import RetryHandler, RetryConfig, AdaptiveRetryHandler
 
 
 class TestRetryHandler:
@@ -131,7 +131,7 @@ class TestRetryHandler:
     
     def test_retry_handler_decorator(self):
         """Test retry handler decorator."""
-        from app.services.llm.retry_handler import retry
+        from app.client.llm.retry_handler import retry
         
         call_count = 0
         

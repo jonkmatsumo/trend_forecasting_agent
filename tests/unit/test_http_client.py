@@ -8,9 +8,9 @@ from unittest.mock import Mock, patch, MagicMock
 import requests
 from requests.exceptions import RequestException
 
-from app.agent_graph.http.http_client import HTTPClient
-from app.agent_graph.http.http_config import HTTPClientConfig
-from app.agent_graph.http.http_models import HTTPError, HealthRequest
+from app.client.http.http_client import HTTPClient
+from app.client.http.http_config import HTTPClientConfig
+from app.client.http.http_models import HTTPError, HealthRequest
 
 
 class TestHTTPClient:
@@ -298,7 +298,7 @@ class TestHTTPClientConfig:
             'HTTP_MAX_RETRIES': '5',
             'HTTP_LOG_REQUESTS': 'false'
         }):
-            from app.agent_graph.http.http_config import load_http_config
+            from app.client.http.http_config import load_http_config
             config = load_http_config()
             
             assert config.base_url == "http://test:8080"
@@ -312,7 +312,7 @@ class TestHTTPModels:
     
     def test_http_request_validation(self):
         """Test HTTP request validation."""
-        from app.agent_graph.http.http_models import HTTPRequest, HTTPMethod
+        from app.client.http.http_models import HTTPRequest, HTTPMethod
         
         # Valid request
         request = HTTPRequest(
@@ -334,7 +334,7 @@ class TestHTTPModels:
     
     def test_http_response_properties(self):
         """Test HTTP response properties."""
-        from app.agent_graph.http.http_models import HTTPResponse
+        from app.client.http.http_models import HTTPResponse
         
         # Success response
         response = HTTPResponse(status_code=200, headers={})
@@ -356,7 +356,7 @@ class TestHTTPModels:
     
     def test_http_error(self):
         """Test HTTP error exception."""
-        from app.agent_graph.http.http_models import HTTPError
+        from app.client.http.http_models import HTTPError
         
         error = HTTPError(status_code=404, message="Not Found")
         assert str(error) == "HTTP 404: Not Found"
@@ -365,7 +365,7 @@ class TestHTTPModels:
     
     def test_specific_request_models(self):
         """Test specific request models."""
-        from app.agent_graph.http.http_models import (
+        from app.client.http.http_models import (
             HealthRequest, TrendsSummaryRequest, CompareRequest,
             ListModelsRequest, PredictRequest, TrainRequest, EvaluateRequest
         )

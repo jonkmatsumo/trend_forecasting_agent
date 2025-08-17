@@ -8,9 +8,9 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
 
-from app.services.llm.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
-from app.services.llm.retry_handler import RetryHandler, RetryConfig
-from app.services.llm.rate_limiter import TokenBucketRateLimiter, RateLimitConfig
+from app.client.llm.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
+from app.client.llm.retry_handler import RetryHandler, RetryConfig
+from app.client.llm.rate_limiter import TokenBucketRateLimiter, RateLimitConfig
 from app.services.monitoring_service import monitoring_service
 from app.services.security_service import security_service
 

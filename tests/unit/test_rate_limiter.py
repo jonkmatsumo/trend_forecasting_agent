@@ -8,7 +8,7 @@ import pytest
 import threading
 from unittest.mock import Mock, patch
 
-from app.services.llm.rate_limiter import (
+from app.client.llm.rate_limiter import (
     TokenBucketRateLimiter, RateLimitConfig, 
     MultiTenantRateLimiter, CostTrackingRateLimiter
 )

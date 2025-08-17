@@ -416,8 +416,8 @@ class IntentRecognizer:
         
         try:
             # Import here to avoid circular imports
-            from app.services.llm import LLMClient, OpenAIClient, LocalClient, IntentCache
-            from app.services.llm.intent_cache import hash_query
+            from app.client.llm import LLMClient, OpenAIClient, LocalClient, IntentCache
+            from app.client.llm.intent_cache import hash_query
             
             # Initialize LLM client if not already done
             if not hasattr(self, '_llm_client'):
@@ -490,7 +490,7 @@ class IntentRecognizer:
             Configured LLM client
         """
         # Import here to avoid circular imports
-        from app.services.llm import OpenAIClient, LocalClient
+        from app.client.llm import OpenAIClient, LocalClient
         
         if Config.INTENT_LLM_PROVIDER == "openai":
             if not Config.INTENT_LLM_API_KEY:

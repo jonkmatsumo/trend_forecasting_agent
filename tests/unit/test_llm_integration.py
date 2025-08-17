@@ -6,11 +6,11 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 import json
 
-from app.services.llm.llm_client import LLMClient, IntentClassificationResult, LLMError
-from app.services.llm.openai_client import OpenAIClient
-from app.services.llm.local_client import LocalClient
-from app.services.llm.prompt_templates import IntentClassificationPrompt
-from app.services.llm.intent_cache import IntentCache, hash_query
+from app.client.llm.llm_client import LLMClient, IntentClassificationResult, LLMError
+from app.client.llm.openai_client import OpenAIClient
+from app.client.llm.local_client import LocalClient
+from app.client.llm.prompt_templates import IntentClassificationPrompt
+from app.client.llm.intent_cache import IntentCache, hash_query
 from app.services.agent.intent_recognizer import IntentRecognizer
 from app.models.agent_models import AgentIntent
 
@@ -93,7 +93,7 @@ class TestIntentCache:
 class TestOpenAIClient:
     """Test OpenAI client implementation."""
     
-    @patch('app.services.llm.openai_client.OpenAI')
+    @patch('app.client.llm.openai_client.OpenAI')
     def test_openai_client_initialization(self, mock_openai):
         """Test OpenAI client initialization."""
         mock_client = Mock()
@@ -109,7 +109,7 @@ class TestOpenAIClient:
         assert client.timeout_ms == 2000
         assert client.temperature == 0.0
     
-    @patch('app.services.llm.openai_client.OpenAI')
+    @patch('app.client.llm.openai_client.OpenAI')
     def test_classify_intent_success(self, mock_openai):
         """Test successful intent classification."""
         mock_client = Mock()
@@ -126,7 +126,7 @@ class TestOpenAIClient:
         assert result.confidence == 0.9
         assert result.rationale == "test"
     
-    @patch('app.services.llm.openai_client.OpenAI')
+    @patch('app.client.llm.openai_client.OpenAI')
     def test_classify_intent_invalid_json(self, mock_openai):
         """Test handling of invalid JSON response."""
         mock_client = Mock()
@@ -145,7 +145,7 @@ class TestOpenAIClient:
 class TestLocalClient:
     """Test local client implementation."""
     
-    @patch('app.services.llm.local_client.requests.post')
+    @patch('app.client.llm.local_client.requests.post')
     def test_local_client_initialization(self, mock_post):
         """Test local client initialization."""
         client = LocalClient(
@@ -158,7 +158,7 @@ class TestLocalClient:
         assert client.model == "llama-3.1-8b"
         assert client.timeout_ms == 2000
     
-    @patch('app.services.llm.local_client.requests.post')
+    @patch('app.client.llm.local_client.requests.post')
     def test_classify_intent_success(self, mock_post):
         """Test successful intent classification."""
         mock_response = Mock()
@@ -192,7 +192,7 @@ class TestIntentRecognizerIntegration:
         assert all(score == 0.0 for score in result.scores.values())
     
     @patch('app.services.agent.intent_recognizer.Config')
-    @patch('app.services.llm.openai_client.OpenAI')
+    @patch('app.client.llm.openai_client.OpenAI')
     def test_llm_enabled_with_openai(self, mock_openai, mock_config):
         """Test LLM scorer when enabled with OpenAI."""
         mock_config.INTENT_LLM_ENABLED = True

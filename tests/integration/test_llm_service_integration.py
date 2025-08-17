@@ -7,7 +7,7 @@ import time
 import pytest
 from unittest.mock import Mock, patch
 
-from app.services.llm.llm_client import LLMClient, LLMError, IntentClassificationResult
+from app.client.llm.llm_client import LLMClient, LLMError, IntentClassificationResult
 
 
 class TestLLMServiceIntegration:
@@ -107,7 +107,7 @@ class TestLLMServiceIntegration:
                 return True
         
         # Create client with very restrictive rate limiting
-        from app.services.llm.rate_limiter import RateLimitConfig
+        from app.client.llm.rate_limiter import RateLimitConfig
         rate_config = RateLimitConfig(tokens_per_second=0.1, bucket_size=1)
         
         client = MockLLMClient("test-model", rate_limit_config=rate_config)
@@ -131,7 +131,7 @@ class TestLLMServiceIntegration:
                 return False
         
         # Create client with low failure threshold
-        from app.services.llm.circuit_breaker import CircuitBreakerConfig
+        from app.client.llm.circuit_breaker import CircuitBreakerConfig
         circuit_config = CircuitBreakerConfig(failure_threshold=1)
         
         client = FailingLLMClient("test-model", circuit_breaker_config=circuit_config)
@@ -164,7 +164,7 @@ class TestLLMServiceIntegration:
                 return True
         
         # Create client with retry configuration
-        from app.services.llm.retry_handler import RetryConfig
+        from app.client.llm.retry_handler import RetryConfig
         retry_config = RetryConfig(max_attempts=3, base_delay=0.01)
         
         client = EventuallySuccessfulLLMClient("test-model", retry_config=retry_config)
@@ -226,9 +226,9 @@ class TestLLMServiceIntegration:
         assert hasattr(client, 'rate_limiter')
         
         # Check component types
-        from app.services.llm.circuit_breaker import CircuitBreaker
-        from app.services.llm.retry_handler import RetryHandler
-        from app.services.llm.rate_limiter import TokenBucketRateLimiter
+        from app.client.llm.circuit_breaker import CircuitBreaker
+        from app.client.llm.retry_handler import RetryHandler
+        from app.client.llm.rate_limiter import TokenBucketRateLimiter
         
         assert isinstance(client.circuit_breaker, CircuitBreaker)
         assert isinstance(client.retry_handler, RetryHandler)
@@ -236,9 +236,9 @@ class TestLLMServiceIntegration:
     
     def test_system_component_configuration(self):
         """Test that all system components can be configured."""
-        from app.services.llm.circuit_breaker import CircuitBreakerConfig
-        from app.services.llm.retry_handler import RetryConfig
-        from app.services.llm.rate_limiter import RateLimitConfig
+        from app.client.llm.circuit_breaker import CircuitBreakerConfig
+        from app.client.llm.retry_handler import RetryConfig
+        from app.client.llm.rate_limiter import RateLimitConfig
         
         class MockLLMClient(LLMClient):
             def _classify_intent_impl(self, query):

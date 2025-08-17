@@ -7,7 +7,7 @@ import time
 import pytest
 from unittest.mock import Mock, patch
 
-from app.services.llm.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitState
+from app.client.llm.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitState
 
 
 class TestCircuitBreaker:

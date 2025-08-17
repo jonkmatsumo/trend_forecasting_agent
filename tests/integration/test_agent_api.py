@@ -114,7 +114,7 @@ class TestAgentAPI:
             assert response.status_code == 200  # Agent handles errors gracefully
             data = json.loads(response.data)
             
-            assert 'error' in data['text'].lower()
+            assert 'unhealthy' in data['text'].lower()
             assert data['metadata']['intent'] == 'health'  # Intent recognition still works
             assert data['metadata']['confidence'] > 0.0  # Intent recognition confidence is still high
     
