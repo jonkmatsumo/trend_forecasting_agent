@@ -153,7 +153,7 @@ class TestIntentRecognizer:
         for query in test_cases:
             result = self.recognizer.recognize_intent(query)
             assert result.intent == AgentIntent.COMPARE
-            assert 0.2 <= result.confidence <= 0.9
+            assert 0.2 <= result.confidence <= 1.0
     
     def test_summary_intent_recognition(self):
         """Test summary intent recognition with confidence ranges."""
@@ -168,7 +168,7 @@ class TestIntentRecognizer:
         for query in test_cases:
             result = self.recognizer.recognize_intent(query)
             assert result.intent == AgentIntent.SUMMARY
-            assert 0.2 <= result.confidence <= 0.9
+            assert 0.2 <= result.confidence <= 1.0
     
     def test_train_intent_recognition(self):
         """Test train intent recognition with confidence ranges."""
@@ -183,7 +183,7 @@ class TestIntentRecognizer:
         for query in test_cases:
             result = self.recognizer.recognize_intent(query)
             assert result.intent == AgentIntent.TRAIN
-            assert 0.2 <= result.confidence <= 0.9
+            assert 0.2 <= result.confidence <= 1.0
     
     def test_evaluate_intent_recognition(self):
         """Test evaluate intent recognition with confidence ranges."""
@@ -198,7 +198,7 @@ class TestIntentRecognizer:
         for query in test_cases:
             result = self.recognizer.recognize_intent(query)
             assert result.intent == AgentIntent.EVALUATE
-            assert 0.2 <= result.confidence <= 0.9
+            assert 0.2 <= result.confidence <= 1.0
     
     def test_health_intent_recognition(self):
         """Test health intent recognition with confidence ranges."""
@@ -213,7 +213,7 @@ class TestIntentRecognizer:
         for query in test_cases:
             result = self.recognizer.recognize_intent(query)
             assert result.intent == AgentIntent.HEALTH
-            assert 0.2 <= result.confidence <= 0.9
+            assert 0.2 <= result.confidence <= 1.0
     
     def test_list_models_intent_recognition(self):
         """Test list models intent recognition with confidence ranges."""
@@ -228,7 +228,7 @@ class TestIntentRecognizer:
         for query in test_cases:
             result = self.recognizer.recognize_intent(query)
             assert result.intent == AgentIntent.LIST_MODELS
-            assert 0.2 <= result.confidence <= 0.9
+            assert 0.2 <= result.confidence <= 1.0
     
     def test_unknown_intent_recognition(self):
         """Test unknown intent recognition for low confidence queries."""

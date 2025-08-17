@@ -3,6 +3,7 @@ Tests for enhanced text normalization utilities with dual-view approach.
 """
 
 import pytest
+import unicodedata
 from app.utils.text_normalizer import (
     normalize_views, normalize_with_ftfy, get_normalization_stats,
     TextNormalizer, CHAR_MAP
@@ -273,6 +274,216 @@ class TestCharacterMapping:
         result = _map_chars(text)
         
         assert result == "Hello-World'Test'"
+
+
+class TestLinkProtection:
+    """Test URL and email protection during edge trimming."""
+    
+    def test_url_protection_enabled(self):
+        """Test URL protection when enabled."""
+        text = "https://example.com."
+        loose, strict, stats = normalize_views(text, protect_links=True)
+        
+        # Should protect the URL from trimming
+        assert loose == "https://example.com."
+        assert strict == "https://example.com"
+        assert stats["protect_links"] is True
+    
+    def test_email_protection_enabled(self):
+        """Test email protection when enabled."""
+        text = "user@example.com,"
+        loose, strict, stats = normalize_views(text, protect_links=True)
+        
+        # Should protect the email from trimming
+        assert loose == "user@example.com,"
+        assert strict == "user@example.com"
+        assert stats["protect_links"] is True
+    
+    def test_www_protection_enabled(self):
+        """Test www URL protection when enabled."""
+        text = "www.example.com!"
+        loose, strict, stats = normalize_views(text, protect_links=True)
+        
+        # Should protect the www URL from trimming
+        assert loose == "www.example.com!"
+        assert strict == "www.example.com"
+        assert stats["protect_links"] is True
+    
+    def test_protection_disabled_by_default(self):
+        """Test that protection is disabled by default."""
+        text = "https://example.com."
+        loose, strict, stats = normalize_views(text)
+        
+        # Should trim punctuation by default
+        assert loose == "https://example.com."
+        assert strict == "https://example.com"
+        assert stats["protect_links"] is False
+    
+    def test_protection_with_mixed_punctuation(self):
+        """Test protection works with mixed punctuation."""
+        text = "https://example.com.!!!"
+        loose, strict, stats = normalize_views(text, protect_links=True)
+        
+        # Should protect URL but trim trailing punctuation
+        assert loose == "https://example.com.!!!"
+        assert strict == "https://example.com"
+        assert stats["protect_links"] is True
+    
+    def test_protection_with_leading_whitespace(self):
+        """Test protection works with leading whitespace."""
+        text = "  https://example.com."
+        loose, strict, stats = normalize_views(text, protect_links=True)
+        
+        # Should protect URL and trim leading whitespace
+        assert loose == "https://example.com."
+        assert strict == "https://example.com"
+        assert stats["protect_links"] is True
+    
+    def test_protection_without_trimming(self):
+        """Test protection when trimming is disabled."""
+        text = "https://example.com."
+        loose, strict, stats = normalize_views(text, protect_links=True, trim_punctuation=False)
+        
+        # Should not trim anything when trimming is disabled
+        assert loose == "https://example.com."
+        assert strict == "https://example.com."
+        assert stats["protect_links"] is True
+        assert stats["trim_punctuation"] is False
+    
+    def test_no_protection_for_non_links(self):
+        """Test that non-links are not affected by protection."""
+        text = "Hello World!"
+        loose, strict, stats = normalize_views(text, protect_links=True)
+        
+        # Should work normally for non-links
+        assert loose == "Hello World!"
+        assert strict == "hello world"
+        assert stats["protect_links"] is True
+    
+    def test_protection_with_versus_canonicalization(self):
+        """Test protection works with versus canonicalization."""
+        text = "https://example.com versus test"
+        loose, strict, stats = normalize_views(text, protect_links=True)
+        
+        # Should protect URL and canonicalize versus
+        assert loose == "https://example.com versus test"
+        assert strict == "https://example.com vs test"
+        assert stats["protect_links"] is True
+        assert stats["canon_vs"] is True
+    
+    def test_protection_with_casefolding(self):
+        """Test protection works with casefolding."""
+        text = "HTTPS://EXAMPLE.COM."
+        loose, strict, stats = normalize_views(text, protect_links=True)
+        
+        # Should protect URL and apply casefolding
+        assert loose == "HTTPS://EXAMPLE.COM."
+        assert strict == "https://example.com"
+        assert stats["protect_links"] is True
+        assert stats["casefold_applied"] is True
+    
+    def test_protection_with_text_normalizer_class(self):
+        """Test protection using TextNormalizer class."""
+        normalizer = TextNormalizer(protect_links=True)
+        text = "user@example.com,"
+        result, stats = normalizer.normalize(text)
+        
+        # Should protect email
+        assert result == "user@example.com"
+        assert stats["protect_links"] is True
+    
+    def test_protection_with_normalize_with_ftfy(self):
+        """Test protection using normalize_with_ftfy function."""
+        text = "www.example.com!"
+        result = normalize_with_ftfy(text, protect_links=True)
+        
+        # Should protect www URL
+        assert result == "www.example.com"
+    
+    def test_protection_edge_cases(self):
+        """Test protection with edge cases."""
+        # Test with very short URLs
+        text = "a@b.c,"
+        loose, strict, stats = normalize_views(text, protect_links=True)
+        assert strict == "a@b.c"
+        
+        # Test with URLs containing special characters
+        text = "https://example.com/path?param=value."
+        loose, strict, stats = normalize_views(text, protect_links=True)
+        assert strict == "https://example.com/path?param=value"
+        
+        # Test with URLs containing ports
+        text = "https://example.com:8080."
+        loose, strict, stats = normalize_views(text, protect_links=True)
+        assert strict == "https://example.com:8080"
+
+
+class TestUnicodeDigitNormalization:
+    """Test Unicode digit normalization via NFKC."""
+    
+    def test_full_width_digits(self):
+        """Test full-width digit normalization."""
+        # Full-width digits: ０１２３４５６７８９
+        text = "９０％"
+        loose, strict, stats = normalize_views(text)
+        
+        # NFKC should normalize full-width digits to ASCII
+        assert loose == "90%"
+        assert strict == "90%"
+    
+    def test_full_width_numbers(self):
+        """Test full-width number normalization."""
+        text = "１２３"
+        loose, strict, stats = normalize_views(text)
+        
+        # NFKC should normalize full-width numbers to ASCII
+        assert loose == "123"
+        assert strict == "123"
+    
+    def test_full_width_decimals(self):
+        """Test full-width decimal normalization."""
+        text = "５０．５"
+        loose, strict, stats = normalize_views(text)
+        
+        # NFKC should normalize full-width decimals to ASCII
+        assert loose == "50.5"
+        assert strict == "50.5"
+    
+    def test_mixed_full_width_and_ascii(self):
+        """Test mixed full-width and ASCII digits."""
+        text = "９０% and 50%"
+        loose, strict, stats = normalize_views(text)
+        
+        # Should normalize full-width digits but preserve ASCII
+        assert loose == "90% and 50%"
+        assert strict == "90% and 50%"
+    
+    def test_full_width_with_text(self):
+        """Test full-width digits in context."""
+        text = "Version ３.１２ is released"
+        loose, strict, stats = normalize_views(text)
+        
+        # Should normalize digits but preserve text
+        assert loose == "Version 3.12 is released"
+        assert strict == "version 3.12 is released"
+    
+    def test_python_regex_unicode_digit_support(self):
+        r"""Test that Python's \d regex matches Unicode Nd category."""
+        import re
+        
+        # Test that \d matches full-width digits after NFKC normalization
+        text = "９０％"
+        normalized = unicodedata.normalize("NFKC", text)
+        
+        # \d should match the normalized digits
+        matches = re.findall(r'\d', normalized)
+        assert matches == ['9', '0']
+        
+        # Test with mixed digits
+        text = "９０ and 50"
+        normalized = unicodedata.normalize("NFKC", text)
+        matches = re.findall(r'\d+', normalized)
+        assert matches == ['90', '50']
 
 
 class TestEdgeCases:

@@ -25,6 +25,9 @@ _WS_RE = re.compile(r'\s+')  # Standard whitespace collapse
 # Leading/trailing punctuation to trim, but keep internal punctuation (/, %, :, .)
 _TRIM_RE = re.compile(r'^[\s\.,;:!?(){}\[\]"\']+|[\s\.,;:!?(){}\[\]"\']+$')
 
+# Link protection patterns for URLs and emails
+_LINK_HEAD_RE = re.compile(r'^\s*((?:https?://|www\.|[^\s@\.,;:!?(){}[\]"\']+@[^\s@\.,;:!?(){}[\]"\']+\.[^\s@\.,;:!?(){}[\]"\']+))(?=[\s\.,;:!?(){}\[\]"\']|$)')
+
 # Smart punctuation mapping
 CHAR_MAP = {
     "\u2018": "'", "\u2019": "'",   # ' '
@@ -38,11 +41,58 @@ def _map_chars(s: str) -> str:
     return ''.join(CHAR_MAP.get(ch, ch) for ch in s)
 
 
+def _protect_head_entity(s: str) -> Tuple[str, Optional[str], Optional[str]]:
+    """
+    Protect leading URL or email from trimming by temporarily replacing with a placeholder.
+    
+    Args:
+        s: Input string that may contain a leading URL or email
+        
+    Returns:
+        Tuple of (modified_string, original_entity, trailing_punct) or (original_string, None, None)
+    """
+    match = _LINK_HEAD_RE.match(s)
+    if not match:
+        return s, None, None
+    
+    entity = match.group(1)
+    # Check if there's trailing punctuation after the entity
+    remaining = s[len(entity):].lstrip()
+    trailing_punct = None
+    if remaining and remaining[0] in '.,;:!?(){}[]"\'':
+        trailing_punct = remaining[0]
+    
+    # Use a unique placeholder that won't conflict with normal text
+    placeholder = f"⟦{entity}⟧"
+    modified = s.replace(entity, placeholder, 1)
+    return modified, entity, trailing_punct
+
+
+def _restore_head_entity(s: str, entity: Optional[str], trailing_punct: Optional[str] = None) -> str:
+    """
+    Restore a previously protected entity from its placeholder.
+    
+    Args:
+        s: String containing placeholder
+        entity: Original entity to restore, or None if no entity was protected
+        trailing_punct: Trailing punctuation that was removed, or None
+        
+    Returns:
+        String with entity restored (trailing punctuation is not restored)
+    """
+    if entity is None:
+        return s
+    
+    placeholder = f"⟦{entity}⟧"
+    return s.replace(placeholder, entity, 1)
+
+
 def normalize_views(text: str, 
                    *, 
                    trim_punctuation: bool = True, 
                    canonicalize_vs: bool = True, 
-                   casefold_strict: bool = True) -> Tuple[str, str, Dict]:
+                   casefold_strict: bool = True,
+                   protect_links: bool = False) -> Tuple[str, str, Dict]:
     """
     Normalize text with dual-view approach: loose for keywords, strict for regex slots.
     
@@ -51,6 +101,7 @@ def normalize_views(text: str,
         trim_punctuation: Whether to trim leading/trailing punctuation in strict view
         canonicalize_vs: Whether to normalize "versus" variants to "vs" in strict view
         casefold_strict: Whether to apply case folding in strict view
+        protect_links: Whether to protect leading URLs/emails from edge trimming
         
     Returns:
         Tuple of (norm_loose, norm_strict, stats)
@@ -83,7 +134,22 @@ def normalize_views(text: str,
     if canonicalize_vs:
         s = _VS_RE.sub("vs", s)
     if trim_punctuation:
+        # Protect leading entities if requested
+        head_entity = None
+        trailing_punct = None
+        if protect_links:
+            s, head_entity, trailing_punct = _protect_head_entity(s)
+        
+        # Apply trimming
         s = _TRIM_RE.sub("", s)
+        
+        # Restore protected entity
+        if head_entity is not None:
+            s = _restore_head_entity(s, head_entity, trailing_punct)
+            # If there was trailing punctuation, it should be removed in strict view
+            # The entity is now protected, so we can safely trim any remaining trailing punctuation
+            if trailing_punct:
+                s = s.rstrip(trailing_punct)
     
     # Enhanced statistics
     stats = get_normalization_stats(original, s)
@@ -96,6 +162,7 @@ def normalize_views(text: str,
         "casefold_applied": casefold_strict,
         "trim_punctuation": trim_punctuation,
         "canon_vs": canonicalize_vs,
+        "protect_links": protect_links,
         "loose_length": len(norm_loose),
         "strict_length": len(s),
     })
@@ -106,7 +173,8 @@ def normalize_views(text: str,
 def normalize_with_ftfy(text: str, 
                        casefold: bool = True,
                        canonicalize_vs: bool = True,
-                       trim_punctuation: bool = True) -> str:
+                       trim_punctuation: bool = True,
+                       protect_links: bool = False) -> str:
     """
     Normalize text for robust regex/rule matching while preserving meaning.
     
@@ -118,6 +186,7 @@ def normalize_with_ftfy(text: str,
         casefold: Whether to apply case folding (stronger than lowercasing)
         canonicalize_vs: Whether to normalize "versus" variants to "vs"
         trim_punctuation: Whether to trim leading/trailing punctuation
+        protect_links: Whether to protect leading URLs/emails from edge trimming
         
     Returns:
         Normalized text suitable for intent recognition (strict view)
@@ -127,7 +196,8 @@ def normalize_with_ftfy(text: str,
         text,
         trim_punctuation=trim_punctuation,
         canonicalize_vs=canonicalize_vs,
-        casefold_strict=casefold
+        casefold_strict=casefold,
+        protect_links=protect_links
     )
     return strict
 
@@ -175,7 +245,8 @@ class TextNormalizer:
     def __init__(self, 
                  casefold: bool = True,
                  canonicalize_vs: bool = True,
-                 trim_punctuation: bool = True):
+                 trim_punctuation: bool = True,
+                 protect_links: bool = False):
         """
         Initialize text normalizer.
         
@@ -183,10 +254,12 @@ class TextNormalizer:
             casefold: Whether to apply case folding
             canonicalize_vs: Whether to normalize "versus" variants
             trim_punctuation: Whether to trim leading/trailing punctuation
+            protect_links: Whether to protect leading URLs/emails from edge trimming
         """
         self.casefold = casefold
         self.canonicalize_vs = canonicalize_vs
         self.trim_punctuation = trim_punctuation
+        self.protect_links = protect_links
     
     def normalize(self, text: str) -> Tuple[str, Dict]:
         """
@@ -202,7 +275,8 @@ class TextNormalizer:
             text,
             trim_punctuation=self.trim_punctuation,
             canonicalize_vs=self.canonicalize_vs,
-            casefold_strict=self.casefold
+            casefold_strict=self.casefold,
+            protect_links=self.protect_links
         )
         return strict, stats
     
@@ -220,7 +294,8 @@ class TextNormalizer:
             text,
             trim_punctuation=self.trim_punctuation,
             canonicalize_vs=self.canonicalize_vs,
-            casefold_strict=self.casefold
+            casefold_strict=self.casefold,
+            protect_links=self.protect_links
         )
         return strict
     
@@ -238,7 +313,8 @@ class TextNormalizer:
             text,
             trim_punctuation=self.trim_punctuation,
             canonicalize_vs=self.canonicalize_vs,
-            casefold_strict=self.casefold
+            casefold_strict=self.casefold,
+            protect_links=self.protect_links
         )
     
     def normalize_for_keywords(self, text: str) -> str:
@@ -276,5 +352,6 @@ class TextNormalizer:
             trim_punctuation=self.trim_punctuation,
             canonicalize_vs=self.canonicalize_vs,
             casefold_strict=self.casefold,
+            protect_links=self.protect_links
         )
         return strict 

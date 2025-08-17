@@ -37,8 +37,8 @@ class OpenAIClient(LLMClient):
         self.prompt_template = IntentClassificationPrompt()
         self.logger = logging.getLogger(__name__)
     
-    def classify_intent(self, query: str) -> IntentClassificationResult:
-        """Classify query intent using OpenAI.
+    def _classify_intent_impl(self, query: str) -> IntentClassificationResult:
+        """Implementation of intent classification using OpenAI.
         
         Args:
             query: User query to classify
@@ -89,12 +89,33 @@ class OpenAIClient(LLMClient):
             # Clamp confidence
             confidence = max(0.0, min(1.0, confidence))
             
+            # Calculate tokens used (approximate)
+            tokens_used = 0
+            if hasattr(response, 'usage') and response.usage:
+                tokens_used = getattr(response.usage, 'total_tokens', 0)
+            
+            # Calculate cost (approximate)
+            cost = 0.0
+            if hasattr(response, 'usage') and response.usage:
+                try:
+                    # Rough cost estimation for GPT-4o-mini
+                    input_cost_per_1k = 0.00015
+                    output_cost_per_1k = 0.0006
+                    input_tokens = getattr(response.usage, 'prompt_tokens', 0)
+                    output_tokens = getattr(response.usage, 'completion_tokens', 0)
+                    cost = (input_tokens * input_cost_per_1k / 1000) + (output_tokens * output_cost_per_1k / 1000)
+                except (TypeError, AttributeError):
+                    # Handle cases where usage attributes are not numeric (e.g., mocks)
+                    cost = 0.0
+            
             return IntentClassificationResult(
                 intent=intent,
                 confidence=confidence,
                 rationale=rationale,
                 model_version=self.model,
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
+                tokens_used=tokens_used,
+                cost=cost
             )
             
         except openai.RateLimitError as e:
@@ -113,8 +134,8 @@ class OpenAIClient(LLMClient):
             self.logger.error(f"Unexpected error in OpenAI classification: {e}")
             raise LLMError(f"Unexpected error: {e}")
     
-    def health_check(self) -> bool:
-        """Check if OpenAI service is healthy.
+    def _health_check_impl(self) -> bool:
+        """Implementation of health check for OpenAI service.
         
         Returns:
             True if healthy, False otherwise

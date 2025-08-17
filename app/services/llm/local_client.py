@@ -34,8 +34,8 @@ class LocalClient(LLMClient):
         self.prompt_template = IntentClassificationPrompt()
         self.logger = logging.getLogger(__name__)
     
-    def classify_intent(self, query: str) -> IntentClassificationResult:
-        """Classify query intent using local model.
+    def _classify_intent_impl(self, query: str) -> IntentClassificationResult:
+        """Implementation of intent classification using local model.
         
         Args:
             query: User query to classify
@@ -98,12 +98,22 @@ class LocalClient(LLMClient):
             # Clamp confidence
             confidence = max(0.0, min(1.0, confidence))
             
+            # Calculate tokens used (if available)
+            tokens_used = 0
+            if "usage" in response_data:
+                tokens_used = response_data["usage"].get("total_tokens", 0)
+            
+            # Local models typically have no cost
+            cost = 0.0
+            
             return IntentClassificationResult(
                 intent=intent,
                 confidence=confidence,
                 rationale=rationale,
                 model_version=self.model,
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
+                tokens_used=tokens_used,
+                cost=cost
             )
             
         except requests.exceptions.Timeout as e:
@@ -123,8 +133,8 @@ class LocalClient(LLMClient):
             self.logger.error(f"Unexpected error in local model classification: {e}")
             raise LLMError(f"Unexpected error: {e}")
     
-    def health_check(self) -> bool:
-        """Check if local model service is healthy.
+    def _health_check_impl(self) -> bool:
+        """Implementation of health check for local model service.
         
         Returns:
             True if healthy, False otherwise

@@ -21,8 +21,7 @@ from app.utils.structured_logger import (
     setup_structured_logging, create_structured_logger
 )
 from app.services.monitoring_service import (
-    PerformanceMetrics, CacheStats, MonitoringService,
-    get_monitoring_service, start_monitoring, stop_monitoring, record_request
+    MonitoringService, MetricsCollector, HealthChecker
 )
 
 
@@ -196,94 +195,67 @@ class TestStructuredLogger:
             assert call_args[1]['extra']['duration_ms'] == 1500.0
 
 
-class TestPerformanceMetrics:
-    """Test performance metrics functionality."""
+class TestMetricsCollector:
+    """Test metrics collector functionality."""
     
-    def test_performance_metrics_creation(self):
-        """Test performance metrics creation."""
-        metrics = PerformanceMetrics("test_operation")
-        assert metrics.operation == "test_operation"
-        assert metrics.total_requests == 0
-        assert metrics.successful_requests == 0
-        assert metrics.failed_requests == 0
+    def test_metrics_collector_creation(self):
+        """Test metrics collector creation."""
+        collector = MetricsCollector()
+        assert collector.metrics == {}
+        assert collector.max_points == 1000
     
-    def test_performance_metrics_recording(self):
-        """Test recording performance metrics."""
-        metrics = PerformanceMetrics("test_operation")
+    def test_metrics_collector_recording(self):
+        """Test recording metrics."""
+        collector = MetricsCollector()
         
-        # Record successful request
-        metrics.record_request(True, 1.0)
-        assert metrics.total_requests == 1
-        assert metrics.successful_requests == 1
-        assert metrics.failed_requests == 0
-        assert metrics.success_rate == 1.0
-        assert metrics.error_rate == 0.0
-        assert metrics.avg_duration == 1.0
-        
-        # Record failed request
-        metrics.record_request(False, 0.5)
-        assert metrics.total_requests == 2
-        assert metrics.successful_requests == 1
-        assert metrics.failed_requests == 1
-        assert metrics.success_rate == 0.5
-        assert metrics.error_rate == 0.5
-        assert metrics.avg_duration == 0.75
+        # Record a metric
+        collector.record("test_metric", 1.0)
+        assert "test_metric" in collector.metrics
+        assert len(collector.metrics["test_metric"]) == 1
+        assert collector.metrics["test_metric"][0].value == 1.0
     
-    def test_performance_metrics_to_dict(self):
-        """Test performance metrics serialization."""
-        metrics = PerformanceMetrics("test_operation")
-        metrics.record_request(True, 1.0)
-        metrics.record_request(False, 0.5)
+    def test_metrics_collector_get_metric(self):
+        """Test getting metrics."""
+        collector = MetricsCollector()
+        collector.record("test_metric", 1.0)
+        collector.record("test_metric", 2.0)
         
-        data = metrics.to_dict()
-        assert data["operation"] == "test_operation"
-        assert data["total_requests"] == 2
-        assert data["successful_requests"] == 1
-        assert data["failed_requests"] == 1
-        assert data["success_rate"] == 0.5
-        assert data["error_rate"] == 0.5
-        assert "avg_duration_ms" in data
-        assert "min_duration_ms" in data
-        assert "max_duration_ms" in data
+        points = collector.get_metric("test_metric")
+        assert len(points) == 2
+        assert points[0].value == 1.0
+        assert points[1].value == 2.0
 
 
-class TestCacheStats:
-    """Test cache statistics functionality."""
+class TestHealthChecker:
+    """Test health checker functionality."""
     
-    def test_cache_stats_creation(self):
-        """Test cache stats creation."""
-        stats = CacheStats()
-        assert stats.cache_size == 0
-        assert stats.cache_hits == 0
-        assert stats.cache_misses == 0
-        assert stats.hit_rate == 0.0
+    def test_health_checker_creation(self):
+        """Test health checker creation."""
+        checker = HealthChecker()
+        assert checker.checks == {}
     
-    def test_cache_stats_hit_rate(self):
-        """Test cache hit rate calculation."""
-        stats = CacheStats()
-        stats.cache_hits = 80
-        stats.cache_misses = 20
+    def test_health_checker_registration(self):
+        """Test health check registration."""
+        checker = HealthChecker()
         
-        assert stats.hit_rate == 0.8
+        def test_check():
+            return {"status": "healthy", "message": "OK"}
         
-        # No requests should return 0
-        stats.cache_hits = 0
-        stats.cache_misses = 0
-        assert stats.hit_rate == 0.0
+        checker.register_check("test", test_check)
+        assert "test" in checker.checks
+        assert checker.checks["test"] == test_check
     
-    def test_cache_stats_to_dict(self):
-        """Test cache stats serialization."""
-        stats = CacheStats()
-        stats.cache_size = 100
-        stats.cache_hits = 80
-        stats.cache_misses = 20
+    def test_health_checker_run_check(self):
+        """Test running health checks."""
+        checker = HealthChecker()
         
-        data = stats.to_dict()
-        assert data["cache_size"] == 100
-        assert data["cache_hits"] == 80
-        assert data["cache_misses"] == 20
-        assert data["hit_rate"] == 0.8
-        assert "last_updated" in data
+        def test_check():
+            return {"status": "healthy", "message": "OK"}
+        
+        checker.register_check("test", test_check)
+        result = checker.run_check("test")
+        assert result["status"] == "healthy"
+        assert result["message"] == "OK"
 
 
 class TestMonitoringService:
@@ -291,83 +263,58 @@ class TestMonitoringService:
     
     def test_monitoring_service_creation(self):
         """Test monitoring service creation."""
-        with patch('app.services.monitoring_service.create_adapter') as mock_create_adapter:
-            mock_adapter = Mock()
-            mock_create_adapter.return_value = mock_adapter
-            
-            service = MonitoringService()
-            assert service.health_status == "unknown"
-            assert service.last_health_check is None
-            assert service.monitoring_thread is None
+        service = MonitoringService()
+        assert service.metrics is not None
+        assert service.health_checker is not None
     
-    def test_monitoring_service_record_request(self):
-        """Test recording requests in monitoring service."""
-        with patch('app.services.monitoring_service.create_adapter') as mock_create_adapter:
-            mock_adapter = Mock()
-            mock_create_adapter.return_value = mock_adapter
-            
-            service = MonitoringService()
-            service.record_request("test_operation", True, 1.0)
-            
-            metrics = service.get_performance_metrics("test_operation")
-            assert metrics["total_requests"] == 1
-            assert metrics["successful_requests"] == 1
-            assert metrics["failed_requests"] == 0
+    def test_monitoring_service_record_llm_request(self):
+        """Test recording LLM requests in monitoring service."""
+        service = MonitoringService()
+        service.record_llm_request("test", "test-model", 1.0, 100, True, 0.01)
+        
+        stats = service.get_llm_stats()
+        assert stats["total_requests"] == 1
+        assert stats["success_rate"] == 1.0
     
-    def test_monitoring_service_get_summary(self):
-        """Test getting monitoring summary."""
-        with patch('app.services.monitoring_service.create_adapter') as mock_create_adapter:
-            mock_adapter = Mock()
-            mock_create_adapter.return_value = mock_adapter
-            
-            service = MonitoringService()
-            summary = service.get_monitoring_summary()
-            
-            assert "health" in summary
-            assert "cache" in summary
-            assert "performance" in summary
-            assert "monitoring_active" in summary
+    def test_monitoring_service_get_metrics_dashboard(self):
+        """Test getting metrics dashboard."""
+        service = MonitoringService()
+        dashboard = service.get_metrics_dashboard()
+        
+        assert "llm_stats" in dashboard
+        assert "system_health" in dashboard
+        assert "metrics" in dashboard
     
-    def test_monitoring_service_start_stop(self):
-        """Test starting and stopping monitoring service."""
-        with patch('app.services.monitoring_service.create_adapter') as mock_create_adapter:
-            mock_adapter = Mock()
-            mock_create_adapter.return_value = mock_adapter
-            
-            service = MonitoringService()
-            
-            # Start monitoring
-            service.start_monitoring(interval_seconds=1)
-            assert service.monitoring_thread is not None
-            assert service.monitoring_thread.is_alive()
-            
-            # Stop monitoring
-            service.stop_monitoring_service()
-            assert not service.monitoring_thread.is_alive()
+    def test_monitoring_service_health_checks(self):
+        """Test health checks in monitoring service."""
+        service = MonitoringService()
+        health = service.get_system_health()
+        
+        assert "status" in health
+        assert "checks" in health
+        assert "timestamp" in health
 
 
-class TestGlobalMonitoringFunctions:
-    """Test global monitoring functions."""
+class TestMonitoringServiceIntegration:
+    """Test monitoring service integration."""
     
-    def test_get_monitoring_service(self):
-        """Test getting global monitoring service."""
-        service = get_monitoring_service()
-        assert isinstance(service, MonitoringService)
-    
-    def test_record_request_function(self):
-        """Test global record_request function."""
-        with patch('app.services.monitoring_service.monitoring_service') as mock_service:
-            record_request("test_operation", True, 1.0)
-            mock_service.record_request.assert_called_once_with("test_operation", True, 1.0)
-    
-    def test_start_stop_monitoring_functions(self):
-        """Test start and stop monitoring functions."""
-        with patch('app.services.monitoring_service.monitoring_service') as mock_service:
-            start_monitoring(interval_seconds=3600)
-            mock_service.start_monitoring.assert_called_once_with(3600)
-            
-            stop_monitoring()
-            mock_service.stop_monitoring_service.assert_called_once()
+    def test_monitoring_service_metrics_integration(self):
+        """Test metrics integration in monitoring service."""
+        service = MonitoringService()
+        
+        # Record some metrics
+        service.record_llm_request("test", "test-model", 1.0, 100, True, 0.01)
+        service.record_intent_classification("llm", 0.5, 0.9, True)
+        
+        # Check that metrics are properly integrated
+        dashboard = service.get_metrics_dashboard()
+        assert "llm_stats" in dashboard
+        assert "metrics" in dashboard
+        
+        # Check that LLM stats are available
+        llm_stats = dashboard["llm_stats"]
+        assert "total_requests" in llm_stats
+        assert "success_rate" in llm_stats
 
 
 class TestRequestLoggingIntegration:

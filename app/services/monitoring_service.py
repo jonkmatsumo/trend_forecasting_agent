@@ -1,398 +1,398 @@
 """
-Monitoring Service
-Provides comprehensive monitoring capabilities including health checks, cache stats, performance metrics, and error rates.
+Monitoring and Telemetry Service
+Provides comprehensive monitoring for LLM services including metrics, health checks, and performance tracking.
 """
 
 import time
 import threading
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
-from collections import defaultdict, deque
+import logging
+from typing import Dict, Any, Optional, List, Callable
 from dataclasses import dataclass, field
-
-from app.utils.structured_logger import create_structured_logger
-from app.config.adapter_config import create_adapter
+from collections import defaultdict, deque
+from datetime import datetime, timedelta
+import json
 
 
 @dataclass
-class PerformanceMetrics:
-    """Performance metrics for an operation."""
-    operation: str
-    total_requests: int = 0
-    successful_requests: int = 0
-    failed_requests: int = 0
-    total_duration: float = 0.0
-    min_duration: float = float('inf')
-    max_duration: float = 0.0
-    recent_durations: deque = field(default_factory=lambda: deque(maxlen=100))
+class MetricPoint:
+    """Single metric data point."""
+    timestamp: float
+    value: float
+    labels: Dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class HealthCheck:
+    """Health check result."""
+    name: str
+    status: str  # "healthy", "degraded", "unhealthy"
+    message: str
+    timestamp: float
+    details: Dict[str, Any] = field(default_factory=dict)
+
+
+class MetricsCollector:
+    """Collects and stores metrics with time-series capabilities."""
     
-    @property
-    def success_rate(self) -> float:
-        """Calculate success rate."""
-        if self.total_requests == 0:
-            return 0.0
-        return self.successful_requests / self.total_requests
-    
-    @property
-    def error_rate(self) -> float:
-        """Calculate error rate."""
-        if self.total_requests == 0:
-            return 0.0
-        return self.failed_requests / self.total_requests
-    
-    @property
-    def avg_duration(self) -> float:
-        """Calculate average duration."""
-        if self.total_requests == 0:
-            return 0.0
-        return self.total_duration / self.total_requests
-    
-    @property
-    def p95_duration(self) -> float:
-        """Calculate 95th percentile duration."""
-        if not self.recent_durations:
-            return 0.0
-        sorted_durations = sorted(self.recent_durations)
-        index = int(0.95 * len(sorted_durations))
-        return sorted_durations[index] if index < len(sorted_durations) else sorted_durations[-1]
-    
-    def record_request(self, success: bool, duration: float):
-        """Record a request."""
-        self.total_requests += 1
-        if success:
-            self.successful_requests += 1
-        else:
-            self.failed_requests += 1
+    def __init__(self, max_points: int = 1000):
+        """Initialize metrics collector.
         
-        self.total_duration += duration
-        self.min_duration = min(self.min_duration, duration)
-        self.max_duration = max(self.max_duration, duration)
-        self.recent_durations.append(duration)
+        Args:
+            max_points: Maximum number of points to keep per metric
+        """
+        self.max_points = max_points
+        self.metrics: Dict[str, deque] = defaultdict(lambda: deque(maxlen=max_points))
+        self.lock = threading.Lock()
+        self.logger = logging.getLogger("metrics_collector")
     
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
+    def record(self, metric_name: str, value: float, labels: Optional[Dict[str, str]] = None):
+        """Record a metric value.
+        
+        Args:
+            metric_name: Name of the metric
+            value: Metric value
+            labels: Optional labels for the metric
+        """
+        point = MetricPoint(
+            timestamp=time.time(),
+            value=value,
+            labels=labels or {}
+        )
+        
+        with self.lock:
+            self.metrics[metric_name].append(point)
+    
+    def get_metric(self, metric_name: str, window_seconds: Optional[float] = None) -> List[MetricPoint]:
+        """Get metric data points.
+        
+        Args:
+            metric_name: Name of the metric
+            window_seconds: Optional time window filter
+            
+        Returns:
+            List of metric points
+        """
+        with self.lock:
+            if metric_name not in self.metrics:
+                return []
+            
+            points = list(self.metrics[metric_name])
+            
+            if window_seconds:
+                cutoff = time.time() - window_seconds
+                points = [p for p in points if p.timestamp >= cutoff]
+            
+            return points
+    
+    def get_summary(self, metric_name: str, window_seconds: float = 3600) -> Dict[str, Any]:
+        """Get metric summary statistics.
+        
+        Args:
+            metric_name: Name of the metric
+            window_seconds: Time window for summary
+            
+        Returns:
+            Dictionary with summary statistics
+        """
+        points = self.get_metric(metric_name, window_seconds)
+        
+        if not points:
+            return {
+                "count": 0,
+                "min": None,
+                "max": None,
+                "avg": None,
+                "sum": 0
+            }
+        
+        values = [p.value for p in points]
+        
         return {
-            'operation': self.operation,
-            'total_requests': self.total_requests,
-            'successful_requests': self.successful_requests,
-            'failed_requests': self.failed_requests,
-            'success_rate': round(self.success_rate, 3),
-            'error_rate': round(self.error_rate, 3),
-            'avg_duration_ms': round(self.avg_duration * 1000, 2),
-            'min_duration_ms': round(self.min_duration * 1000, 2) if self.min_duration != float('inf') else 0,
-            'max_duration_ms': round(self.max_duration * 1000, 2),
-            'p95_duration_ms': round(self.p95_duration * 1000, 2)
+            "count": len(values),
+            "min": min(values),
+            "max": max(values),
+            "avg": sum(values) / len(values),
+            "sum": sum(values)
         }
+    
+    def get_all_metrics(self) -> Dict[str, List[MetricPoint]]:
+        """Get all metrics.
+        
+        Returns:
+            Dictionary mapping metric names to their points
+        """
+        with self.lock:
+            return {name: list(points) for name, points in self.metrics.items()}
 
 
-@dataclass
-class CacheStats:
-    """Cache statistics."""
-    cache_size: int = 0
-    cache_hits: int = 0
-    cache_misses: int = 0
-    cache_evictions: int = 0
-    last_updated: datetime = field(default_factory=datetime.utcnow)
+class HealthChecker:
+    """Performs health checks on various system components."""
     
-    @property
-    def hit_rate(self) -> float:
-        """Calculate cache hit rate."""
-        total_requests = self.cache_hits + self.cache_misses
-        if total_requests == 0:
-            return 0.0
-        return self.cache_hits / total_requests
+    def __init__(self):
+        """Initialize health checker."""
+        self.checks: Dict[str, Callable] = {}
+        self.logger = logging.getLogger("health_checker")
     
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
-        return {
-            'cache_size': self.cache_size,
-            'cache_hits': self.cache_hits,
-            'cache_misses': self.cache_misses,
-            'cache_evictions': self.cache_evictions,
-            'hit_rate': round(self.hit_rate, 3),
-            'last_updated': self.last_updated.isoformat()
-        }
+    def register_check(self, name: str, check_func: Callable[[], HealthCheck]):
+        """Register a health check function.
+        
+        Args:
+            name: Name of the health check
+            check_func: Function that returns HealthCheck
+        """
+        self.checks[name] = check_func
+        self.logger.info(f"Registered health check: {name}")
+    
+    def run_check(self, name: str) -> Optional[HealthCheck]:
+        """Run a specific health check.
+        
+        Args:
+            name: Name of the health check
+            
+        Returns:
+            Health check result or None if not found
+        """
+        if name not in self.checks:
+            return None
+        
+        try:
+            return self.checks[name]()
+        except Exception as e:
+            self.logger.error(f"Health check '{name}' failed: {e}")
+            return HealthCheck(
+                name=name,
+                status="unhealthy",
+                message=f"Check failed: {str(e)}",
+                timestamp=time.time()
+            )
+    
+    def run_all_checks(self) -> Dict[str, HealthCheck]:
+        """Run all registered health checks.
+        
+        Returns:
+            Dictionary mapping check names to results
+        """
+        results = {}
+        for name in self.checks:
+            results[name] = self.run_check(name)
+        return results
+    
+    def get_overall_status(self) -> str:
+        """Get overall system health status.
+        
+        Returns:
+            Overall status: "healthy", "degraded", or "unhealthy"
+        """
+        results = self.run_all_checks()
+        
+        if not results:
+            return "unknown"
+        
+        statuses = [r.status for r in results.values() if r]
+        
+        if "unhealthy" in statuses:
+            return "unhealthy"
+        elif "degraded" in statuses:
+            return "degraded"
+        else:
+            return "healthy"
 
 
 class MonitoringService:
-    """Comprehensive monitoring service for the forecaster application."""
+    """Main monitoring service that coordinates metrics and health checks."""
     
     def __init__(self):
-        """Initialize the monitoring service."""
-        self.logger = create_structured_logger("monitoring")
-        self.adapter = create_adapter()
+        """Initialize monitoring service."""
+        self.metrics = MetricsCollector()
+        self.health_checker = HealthChecker()
+        self.logger = logging.getLogger("monitoring_service")
         
-        # Performance tracking
-        self.performance_metrics: Dict[str, PerformanceMetrics] = defaultdict(
-            lambda: PerformanceMetrics("unknown")
-        )
-        
-        # Cache statistics
-        self.cache_stats = CacheStats()
-        
-        # Health status
-        self.health_status = "unknown"
-        self.last_health_check = None
-        
-        # Monitoring thread
-        self.monitoring_thread = None
-        self.stop_monitoring = threading.Event()
-        
-        # Weekly statistics
-        self.weekly_stats = {
-            'health_checks': [],
-            'cache_stats': [],
-            'performance_metrics': [],
-            'error_rates': []
-        }
+        # Register default health checks
+        self._register_default_checks()
     
-    def start_monitoring(self, interval_seconds: int = 3600):
-        """Start the monitoring service.
-        
-        Args:
-            interval_seconds: Interval between monitoring checks in seconds
-        """
-        if self.monitoring_thread and self.monitoring_thread.is_alive():
-            self.logger.logger.warning("Monitoring service already running")
-            return
-        
-        self.stop_monitoring.clear()
-        self.monitoring_thread = threading.Thread(
-            target=self._monitoring_loop,
-            args=(interval_seconds,),
-            daemon=True
-        )
-        self.monitoring_thread.start()
-        self.logger.logger.info("Monitoring service started")
+    def _register_default_checks(self):
+        """Register default health checks."""
+        self.health_checker.register_check("system", self._system_health_check)
+        self.health_checker.register_check("memory", self._memory_health_check)
     
-    def stop_monitoring_service(self):
-        """Stop the monitoring service."""
-        self.stop_monitoring.set()
-        if self.monitoring_thread:
-            self.monitoring_thread.join(timeout=5)
-        self.logger.logger.info("Monitoring service stopped")
-    
-    def _monitoring_loop(self, interval_seconds: int):
-        """Main monitoring loop."""
-        while not self.stop_monitoring.wait(interval_seconds):
-            try:
-                self._perform_health_check()
-                self._update_cache_stats()
-                self._log_performance_metrics()
-                self._log_error_rates()
-                
-                # Weekly logging (every 7 days)
-                if self._should_log_weekly():
-                    self._log_weekly_summary()
-                    
-            except Exception as e:
-                self.logger.logger.error(f"Error in monitoring loop: {str(e)}", exc_info=True)
-    
-    def _perform_health_check(self):
-        """Perform health check on the forecaster service."""
-        try:
-            start_time = time.time()
-            health_response = self.adapter.health()
-            duration = time.time() - start_time
-            
-            status = health_response.get("status", "unknown")
-            self.health_status = status
-            self.last_health_check = datetime.utcnow()
-            
-            self.logger.log_health_check(
-                service="forecaster",
-                status=status,
-                duration_ms=round(duration * 1000, 2),
-                response=health_response
-            )
-            
-            # Record performance metrics
-            self._record_performance("health_check", status == "healthy", duration)
-            
-        except Exception as e:
-            self.health_status = "unhealthy"
-            self.last_health_check = datetime.utcnow()
-            self.logger.logger.error(f"Health check failed: {str(e)}", exc_info=True)
-            self._record_performance("health_check", False, 0.0)
-    
-    def _update_cache_stats(self):
-        """Update cache statistics."""
-        try:
-            start_time = time.time()
-            cache_response = self.adapter.cache_stats()
-            duration = time.time() - start_time
-            
-            if cache_response.get("status") == "success":
-                cache_data = cache_response.get("cache_stats", {})
-                self.cache_stats.cache_size = cache_data.get("cache_size", 0)
-                self.cache_stats.cache_hits = cache_data.get("cache_hits", 0)
-                self.cache_stats.cache_misses = cache_data.get("cache_misses", 0)
-                self.cache_stats.last_updated = datetime.utcnow()
-                
-                self.logger.log_cache_stats(
-                    cache_size=self.cache_stats.cache_size,
-                    cache_hits=self.cache_stats.cache_hits,
-                    cache_misses=self.cache_stats.cache_misses,
-                    duration_ms=round(duration * 1000, 2)
-                )
-            
-            # Record performance metrics
-            self._record_performance("cache_stats", cache_response.get("status") == "success", duration)
-            
-        except Exception as e:
-            self.logger.logger.error(f"Cache stats update failed: {str(e)}", exc_info=True)
-            self._record_performance("cache_stats", False, 0.0)
-    
-    def _log_performance_metrics(self):
-        """Log current performance metrics."""
-        for operation, metrics in self.performance_metrics.items():
-            if metrics.total_requests > 0:
-                self.logger.log_performance_metrics(operation, metrics.to_dict())
-    
-    def _log_error_rates(self):
-        """Log current error rates."""
-        for operation, metrics in self.performance_metrics.items():
-            if metrics.total_requests > 0:
-                self.logger.log_error_rate(
-                    operation=operation,
-                    total_requests=metrics.total_requests,
-                    error_count=metrics.failed_requests
-                )
-    
-    def _should_log_weekly(self) -> bool:
-        """Check if weekly logging should be performed."""
-        # Simple check: log weekly if it's been more than 7 days since last weekly log
-        # In a real implementation, you might want to check the actual day of week
-        return True  # For demo purposes, always log weekly
-    
-    def _log_weekly_summary(self):
-        """Log weekly summary statistics."""
-        # Health summary
-        self.logger.log_weekly_health(
-            status=self.health_status,
-            last_check=self.last_health_check.isoformat() if self.last_health_check else None
-        )
-        
-        # Cache summary
-        self.logger.log_weekly_cache_stats(**self.cache_stats.to_dict())
-        
-        # Performance summary
-        performance_summary = {}
-        for operation, metrics in self.performance_metrics.items():
-            if metrics.total_requests > 0:
-                performance_summary[operation] = metrics.to_dict()
-        
-        self.logger.log_weekly_performance(performance_summary=performance_summary)
-        
-        # Error rates summary
-        error_rates_summary = {}
-        for operation, metrics in self.performance_metrics.items():
-            if metrics.total_requests > 0:
-                error_rates_summary[operation] = {
-                    'total_requests': metrics.total_requests,
-                    'error_count': metrics.failed_requests,
-                    'error_rate': round(metrics.error_rate, 3)
-                }
-        
-        self.logger.log_weekly_error_rates(error_rates=error_rates_summary)
-    
-    def _record_performance(self, operation: str, success: bool, duration: float):
-        """Record performance metrics for an operation."""
-        if operation not in self.performance_metrics:
-            self.performance_metrics[operation] = PerformanceMetrics(operation)
-        
-        self.performance_metrics[operation].record_request(success, duration)
-    
-    def record_request(self, operation: str, success: bool, duration: float):
-        """Record a request for performance tracking.
-        
-        Args:
-            operation: Operation name
-            success: Whether the request was successful
-            duration: Request duration in seconds
-        """
-        self._record_performance(operation, success, duration)
-    
-    def get_performance_metrics(self, operation: Optional[str] = None) -> Dict[str, Any]:
-        """Get performance metrics.
-        
-        Args:
-            operation: Specific operation to get metrics for, or None for all
-            
-        Returns:
-            Performance metrics dictionary
-        """
-        if operation:
-            metrics = self.performance_metrics.get(operation)
-            return metrics.to_dict() if metrics else {}
-        else:
-            return {
-                op: metrics.to_dict() 
-                for op, metrics in self.performance_metrics.items()
+    def _system_health_check(self) -> HealthCheck:
+        """System-level health check."""
+        return HealthCheck(
+            name="system",
+            status="healthy",
+            message="System is operational",
+            timestamp=time.time(),
+            details={
+                "uptime": time.time() - self._start_time if hasattr(self, '_start_time') else 0
             }
+        )
     
-    def get_cache_stats(self) -> Dict[str, Any]:
-        """Get current cache statistics.
-        
-        Returns:
-            Cache statistics dictionary
-        """
-        return self.cache_stats.to_dict()
+    def _memory_health_check(self) -> HealthCheck:
+        """Memory usage health check."""
+        try:
+            import psutil
+            memory = psutil.virtual_memory()
+            
+            if memory.percent < 80:
+                status = "healthy"
+            elif memory.percent < 90:
+                status = "degraded"
+            else:
+                status = "unhealthy"
+            
+            return HealthCheck(
+                name="memory",
+                status=status,
+                message=f"Memory usage: {memory.percent:.1f}%",
+                timestamp=time.time(),
+                details={
+                    "percent": memory.percent,
+                    "available": memory.available,
+                    "total": memory.total
+                }
+            )
+        except ImportError:
+            return HealthCheck(
+                name="memory",
+                status="unknown",
+                message="psutil not available",
+                timestamp=time.time()
+            )
     
-    def get_health_status(self) -> Dict[str, Any]:
-        """Get current health status.
+    def record_llm_request(self, provider: str, model: str, duration: float, 
+                          tokens_used: int, success: bool, cost: float = 0.0):
+        """Record LLM request metrics.
         
-        Returns:
-            Health status dictionary
+        Args:
+            provider: LLM provider (e.g., "openai", "local")
+            model: Model name
+            duration: Request duration in seconds
+            tokens_used: Number of tokens used
+            success: Whether request was successful
+            cost: Request cost in dollars
         """
+        labels = {"provider": provider, "model": model}
+        
+        # Record various metrics
+        self.metrics.record("llm_request_duration", duration, labels)
+        self.metrics.record("llm_tokens_used", tokens_used, labels)
+        self.metrics.record("llm_request_cost", cost, labels)
+        self.metrics.record("llm_request_success", 1.0 if success else 0.0, labels)
+        
+        # Record success rate
+        success_rate = self.metrics.get_summary("llm_request_success", 3600)["avg"] or 0.0
+        self.metrics.record("llm_success_rate", success_rate, labels)
+    
+    def record_intent_classification(self, method: str, duration: float, 
+                                   confidence: float, success: bool):
+        """Record intent classification metrics.
+        
+        Args:
+            method: Classification method (e.g., "semantic", "regex", "llm")
+            duration: Classification duration in seconds
+            confidence: Classification confidence score
+            success: Whether classification was successful
+        """
+        labels = {"method": method}
+        
+        self.metrics.record("intent_classification_duration", duration, labels)
+        self.metrics.record("intent_classification_confidence", confidence, labels)
+        self.metrics.record("intent_classification_success", 1.0 if success else 0.0, labels)
+    
+    def get_llm_stats(self, window_seconds: float = 3600) -> Dict[str, Any]:
+        """Get LLM usage statistics.
+        
+        Args:
+            window_seconds: Time window for statistics
+            
+        Returns:
+            Dictionary with LLM statistics
+        """
+        duration_stats = self.metrics.get_summary("llm_request_duration", window_seconds)
+        tokens_stats = self.metrics.get_summary("llm_tokens_used", window_seconds)
+        cost_stats = self.metrics.get_summary("llm_request_cost", window_seconds)
+        success_stats = self.metrics.get_summary("llm_request_success", window_seconds)
+        
         return {
-            'status': self.health_status,
-            'last_check': self.last_health_check.isoformat() if self.last_health_check else None
+            "duration": duration_stats,
+            "tokens": tokens_stats,
+            "cost": cost_stats,
+            "success_rate": success_stats.get("avg", 0.0),
+            "total_requests": duration_stats["count"],
+            "window_seconds": window_seconds
         }
     
-    def get_monitoring_summary(self) -> Dict[str, Any]:
-        """Get comprehensive monitoring summary.
+    def get_system_health(self) -> Dict[str, Any]:
+        """Get system health status.
         
         Returns:
-            Monitoring summary dictionary
+            Dictionary with health information
+        """
+        health_results = self.health_checker.run_all_checks()
+        overall_status = self.health_checker.get_overall_status()
+        
+        return {
+            "status": overall_status,
+            "timestamp": time.time(),
+            "checks": {
+                name: {
+                    "status": result.status,
+                    "message": result.message,
+                    "timestamp": result.timestamp,
+                    "details": result.details
+                }
+                for name, result in health_results.items()
+                if result
+            }
+        }
+    
+    def get_metrics_dashboard(self) -> Dict[str, Any]:
+        """Get comprehensive metrics dashboard.
+        
+        Returns:
+            Dictionary with dashboard data
         """
         return {
-            'health': self.get_health_status(),
-            'cache': self.get_cache_stats(),
-            'performance': self.get_performance_metrics(),
-            'monitoring_active': self.monitoring_thread and self.monitoring_thread.is_alive()
+            "llm_stats": self.get_llm_stats(),
+            "system_health": self.get_system_health(),
+            "metrics": {
+                name: self.metrics.get_summary(name, 3600)
+                for name in self.metrics.get_all_metrics().keys()
+            }
         }
+    
+    def export_metrics(self, format: str = "json") -> str:
+        """Export metrics in specified format.
+        
+        Args:
+            format: Export format ("json" or "prometheus")
+            
+        Returns:
+            Exported metrics as string
+        """
+        if format == "json":
+            return json.dumps(self.get_metrics_dashboard(), indent=2)
+        elif format == "prometheus":
+            return self._export_prometheus()
+        else:
+            raise ValueError(f"Unsupported format: {format}")
+    
+    def _export_prometheus(self) -> str:
+        """Export metrics in Prometheus format."""
+        lines = []
+        
+        for metric_name, points in self.metrics.get_all_metrics().items():
+            for point in points:
+                # Convert labels to Prometheus format
+                label_str = ""
+                if point.labels:
+                    label_pairs = [f'{k}="{v}"' for k, v in point.labels.items()]
+                    label_str = "{" + ",".join(label_pairs) + "}"
+                
+                lines.append(f'{metric_name}{label_str} {point.value} {int(point.timestamp * 1000)}')
+        
+        return "\n".join(lines)
 
 
 # Global monitoring service instance
-monitoring_service = MonitoringService()
-
-
-def get_monitoring_service() -> MonitoringService:
-    """Get the global monitoring service instance."""
-    return monitoring_service
-
-
-def start_monitoring(interval_seconds: int = 3600):
-    """Start the monitoring service.
-    
-    Args:
-        interval_seconds: Interval between monitoring checks in seconds
-    """
-    monitoring_service.start_monitoring(interval_seconds)
-
-
-def stop_monitoring():
-    """Stop the monitoring service."""
-    monitoring_service.stop_monitoring_service()
-
-
-def record_request(operation: str, success: bool, duration: float):
-    """Record a request for performance tracking.
-    
-    Args:
-        operation: Operation name
-        success: Whether the request was successful
-        duration: Request duration in seconds
-    """
-    monitoring_service.record_request(operation, success, duration) 
+monitoring_service = MonitoringService() 

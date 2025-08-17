@@ -86,12 +86,54 @@ class Config:
         "health": float(os.environ.get('INTENT_LLM_MIN_HEALTH', '0.30')),
         "list_models": float(os.environ.get('INTENT_LLM_MIN_LIST_MODELS', '0.30'))
     }
+    
+    # Phase 2: Circuit Breaker Configuration
+    CIRCUIT_BREAKER_FAILURE_THRESHOLD = int(os.environ.get('CIRCUIT_BREAKER_FAILURE_THRESHOLD', '5'))
+    CIRCUIT_BREAKER_RECOVERY_TIMEOUT = float(os.environ.get('CIRCUIT_BREAKER_RECOVERY_TIMEOUT', '60.0'))
+    CIRCUIT_BREAKER_SUCCESS_THRESHOLD = int(os.environ.get('CIRCUIT_BREAKER_SUCCESS_THRESHOLD', '2'))
+    
+    # Phase 2: Retry Configuration
+    RETRY_MAX_ATTEMPTS = int(os.environ.get('RETRY_MAX_ATTEMPTS', '3'))
+    RETRY_BASE_DELAY = float(os.environ.get('RETRY_BASE_DELAY', '1.0'))
+    RETRY_MAX_DELAY = float(os.environ.get('RETRY_MAX_DELAY', '60.0'))
+    RETRY_EXPONENTIAL_BASE = float(os.environ.get('RETRY_EXPONENTIAL_BASE', '2.0'))
+    RETRY_JITTER = os.environ.get('RETRY_JITTER', 'True').lower() == 'true'
+    
+    # Phase 2: Rate Limiter Configuration
+    RATE_LIMITER_TOKENS_PER_SECOND = float(os.environ.get('RATE_LIMITER_TOKENS_PER_SECOND', '10.0'))
+    RATE_LIMITER_BUCKET_SIZE = int(os.environ.get('RATE_LIMITER_BUCKET_SIZE', '100'))
+    RATE_LIMITER_COST_PER_REQUEST = float(os.environ.get('RATE_LIMITER_COST_PER_REQUEST', '1.0'))
+    RATE_LIMITER_BURST_SIZE = int(os.environ.get('RATE_LIMITER_BURST_SIZE', '20'))
+    
+    # Phase 2: Monitoring Configuration
+    MONITORING_ENABLED = os.environ.get('MONITORING_ENABLED', 'True').lower() == 'true'
+    MONITORING_METRICS_RETENTION_HOURS = int(os.environ.get('MONITORING_METRICS_RETENTION_HOURS', '24'))
+    MONITORING_HEALTH_CHECK_INTERVAL = int(os.environ.get('MONITORING_HEALTH_CHECK_INTERVAL', '300'))
+    MONITORING_EXPORT_FORMAT = os.environ.get('MONITORING_EXPORT_FORMAT', 'json')
+    
+    # Phase 2: Security Configuration
+    SECURITY_ENABLED = os.environ.get('SECURITY_ENABLED', 'True').lower() == 'true'
+    SECURITY_AUDIT_LOG_FILE = os.environ.get('SECURITY_AUDIT_LOG_FILE', 'logs/audit.log')
+    SECURITY_DATA_REDACTION_ENABLED = os.environ.get('SECURITY_DATA_REDACTION_ENABLED', 'True').lower() == 'true'
+    SECURITY_LOG_SENSITIVE_DATA = os.environ.get('SECURITY_LOG_SENSITIVE_DATA', 'False').lower() == 'true'
+    
+    # Phase 2: Cost Tracking Configuration
+    COST_TRACKING_ENABLED = os.environ.get('COST_TRACKING_ENABLED', 'True').lower() == 'true'
+    COST_PER_TOKEN = float(os.environ.get('COST_PER_TOKEN', '0.001'))
+    COST_ALERT_THRESHOLD = float(os.environ.get('COST_ALERT_THRESHOLD', '10.0'))
+    COST_DAILY_LIMIT = float(os.environ.get('COST_DAILY_LIMIT', '50.0'))
 
 
 class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG = True
     LOG_LEVEL = 'DEBUG'
+    
+    # Development-specific Phase 2 settings
+    CIRCUIT_BREAKER_FAILURE_THRESHOLD = 3
+    RETRY_MAX_ATTEMPTS = 2
+    RATE_LIMITER_TOKENS_PER_SECOND = 20.0
+    SECURITY_LOG_SENSITIVE_DATA = True
 
 
 class TestingConfig(Config):
@@ -102,6 +144,13 @@ class TestingConfig(Config):
     DATA_DIR = 'test_data'
     MODELS_DIR = 'test_models'
     LOGS_DIR = 'test_logs'
+    
+    # Testing-specific Phase 2 settings
+    CIRCUIT_BREAKER_FAILURE_THRESHOLD = 1
+    RETRY_MAX_ATTEMPTS = 1
+    RATE_LIMITER_TOKENS_PER_SECOND = 100.0
+    MONITORING_ENABLED = False
+    SECURITY_ENABLED = False
 
 
 class ProductionConfig(Config):
@@ -112,6 +161,14 @@ class ProductionConfig(Config):
     # Production-specific settings
     RATE_LIMIT_DEFAULT = '50/hour'
     CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '').split(',') if os.environ.get('CORS_ORIGINS') else []
+    
+    # Production-specific Phase 2 settings
+    CIRCUIT_BREAKER_FAILURE_THRESHOLD = 10
+    CIRCUIT_BREAKER_RECOVERY_TIMEOUT = 120.0
+    RETRY_MAX_ATTEMPTS = 5
+    RATE_LIMITER_TOKENS_PER_SECOND = 5.0
+    SECURITY_LOG_SENSITIVE_DATA = False
+    COST_ALERT_THRESHOLD = 5.0
 
 
 # Configuration dictionary
