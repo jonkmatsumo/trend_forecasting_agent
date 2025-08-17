@@ -115,24 +115,6 @@ class ForecasterServiceInterface(Protocol):
             Dictionary containing health status with same shape as current /health endpoint
         """
         ...
-    
-    def cache_stats(self) -> Dict[str, Any]:
-        """
-        Get trends service cache statistics.
-        
-        Returns:
-            Dictionary containing cache statistics with same shape as current /trends/cache/stats endpoint
-        """
-        ...
-    
-    def cache_clear(self) -> Dict[str, Any]:
-        """
-        Clear the trends service cache.
-        
-        Returns:
-            Dictionary containing cache clear result with same shape as current /trends/cache/clear endpoint
-        """
-        ...
 
 
 class AbstractForecasterService(ABC):
@@ -179,16 +161,6 @@ class AbstractForecasterService(ABC):
     @abstractmethod
     def health(self) -> Dict[str, Any]:
         """Health check for the forecaster service."""
-        pass
-    
-    @abstractmethod
-    def cache_stats(self) -> Dict[str, Any]:
-        """Get trends service cache statistics."""
-        pass
-    
-    @abstractmethod
-    def cache_clear(self) -> Dict[str, Any]:
-        """Clear the trends service cache."""
         pass
     
     def _validate_model_id(self, model_id: str) -> str:

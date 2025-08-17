@@ -34,115 +34,71 @@ class AgentService:
         self.slot_extractor = SlotExtractor()
         self.validator = AgentValidator()
         
-    def process_query(self, request: AgentRequest) -> AgentResponse:
-        """Process a natural language query.
+    def process_query(self, query: Union[str, AgentRequest]) -> AgentResponse:
+        """Process a natural language query through the full pipeline.
         
         Args:
-            request: The agent request containing the query
+            query: The natural language query (string or AgentRequest)
             
         Returns:
-            AgentResponse with the processed result
+            AgentResponse with results
         """
-        start_time = time.time()
-        
-        with request_context_manager() as request_id:
-            try:
-                # Log the incoming query
-                self.logger.log_intent(
-                    intent="query_received",
-                    confidence=1.0,
-                    query_length=len(request.query),
-                    user_id=request.user_id,
-                    session_id=request.session_id
-                )
-                
-                # Step 0: Validate query length
-                query_validation = self.validator.validate_query_length(request.query)
-                if not query_validation.is_valid:
-                    return create_agent_response(
-                        text="I couldn't process your request. " + " ".join(query_validation.errors),
-                        data={'errors': query_validation.errors},
-                        metadata={'intent': 'error', 'confidence': 0.0},
-                        request_id=request_id
-                    )
-                
-                # Step 1: Recognize intent
-                intent_result = self._recognize_intent(request.query)
-                
-                # Step 2: Extract slots/parameters
-                slots = self._extract_slots(request.query, intent_result.intent)
-                
-                # Step 3: Validate slots
-                validation_result = self.validator.validate_slots(
-                    slots, intent_result.intent, intent_result.confidence
-                )
-                
-                if not validation_result.is_valid:
-                    help_text = self.validator.get_validation_help(intent_result.intent)
-                    error_message = "I couldn't understand your request. " + " ".join(validation_result.errors)
-                    if help_text:
-                        error_message += f"\n\nHelp: {help_text}"
-                    
-                    return create_agent_response(
-                        text=error_message,
-                        data={
-                            'errors': validation_result.errors,
-                            'warnings': validation_result.warnings,
-                            'help': help_text
-                        },
-                        metadata={
-                            'intent': intent_result.intent.value,
-                            'confidence': intent_result.confidence
-                        },
-                        request_id=request_id
-                    )
-                
-                # Use sanitized slots if validation passed
-                sanitized_slots = validation_result.sanitized_slots or slots
-                
-                # Step 4: Execute the action
-                result = self._execute_action(intent_result.intent, sanitized_slots, request)
-                
-                # Step 5: Format the response
-                response = self._format_response(result, intent_result, request)
-                
-                # Log successful processing
-                duration = time.time() - start_time
-                self.logger.log_outcome(
-                    operation="query_processing",
-                    success=True,
-                    duration=duration,
-                    intent=intent_result.intent.value,
-                    confidence=intent_result.confidence
-                )
-                
-                return response
-                
-            except Exception as e:
-                # Log error
-                duration = time.time() - start_time
-                self.logger.logger.error(
-                    f"Error processing query: {str(e)}",
-                    extra={
-                        'request_id': request_id,
-                        'query': request.query,
-                        'error_type': type(e).__name__,
-                        'duration_ms': round(duration * 1000, 2)
-                    },
-                    exc_info=True
-                )
-                
-                # Return error response
-                return create_agent_response(
-                    text=f"I'm sorry, I encountered an error while processing your request: {str(e)}",
-                    data={'error': str(e)},
-                    metadata={
-                        'intent': 'error',
-                        'confidence': 0.0,
-                        'duration_ms': round(duration * 1000, 2)
-                    },
-                    request_id=request_id
-                )
+        try:
+            # Handle both string and AgentRequest inputs
+            if isinstance(query, AgentRequest):
+                raw_query = query.query
+                request = query
+            else:
+                raw_query = query
+                request = None
+            
+            # Normalize text for processing
+            from app.utils.text_normalizer import normalize_with_ftfy
+            normalized_query = normalize_with_ftfy(raw_query)
+            
+            # Step 1: Intent Recognition
+            intent_result = self.intent_recognizer.recognize_intent(
+                normalized_query, 
+                raw_text=raw_query
+            )
+            
+            # Step 2: Slot Extraction (use normalized text for extraction)
+            slots = self.slot_extractor.extract_slots(normalized_query, intent_result.intent)
+            
+            # Step 3: Validation
+            validation_result = self.validator.validate_slots(slots, intent_result.intent, intent_result.confidence)
+            
+            if not validation_result.is_valid:
+                error_result = {
+                    'type': 'error',
+                    'text': '; '.join(validation_result.errors) if validation_result.errors else 'Validation failed',
+                    'data': {'warnings': validation_result.warnings} if validation_result.warnings else {}
+                }
+                return self._format_response(error_result, intent_result, request)
+            
+            # Step 4: Action Execution
+            action_result = self._execute_action(intent_result.intent, slots, request)
+            
+            # Step 5: Format Response
+            return self._format_response(action_result, intent_result, request)
+            
+        except Exception as e:
+            # Log the error
+            self.logger.error(f"Error processing query '{query}': {str(e)}")
+            
+            # Return error response
+            error_result = {
+                'type': 'error',
+                'text': f"An error occurred while processing your query: {str(e)}",
+                'data': {}
+            }
+            # Create a default intent result for error case
+            from app.models.agent_models import create_intent_recognition
+            error_intent = create_intent_recognition(AgentIntent.UNKNOWN, 0.0, raw_query)
+            # Create a dummy request if none exists
+            if request is None:
+                request = AgentRequest(query=raw_query)
+            return self._format_response(error_result, error_intent, request)
     
     def _recognize_intent(self, query: str) -> IntentRecognition:
         """Recognize intent from natural language query.
@@ -353,7 +309,6 @@ class AgentService:
             metadata={
                 'intent': intent_result.intent.value,
                 'confidence': intent_result.confidence,
-                'slots': intent_result.slots,
                 'raw_query': request.query
             },
             request_id=get_current_request_id()

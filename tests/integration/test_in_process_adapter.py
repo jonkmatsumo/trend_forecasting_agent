@@ -9,6 +9,11 @@ from unittest.mock import Mock, patch, MagicMock
 from typing import Dict, Any, List
 
 from app.services.adapters.in_process_adapter import InProcessAdapter
+from app.services.pytrends.trends_service import TrendsService
+from app.services.darts.prediction_service import PredictionService
+from app.services.darts.training_service import TrainingService
+from app.services.darts.evaluation_service import EvaluationService
+from app.utils.structured_logger import create_structured_logger
 from app.models.forecaster_models import (
     create_prediction_response, create_trends_summary_response, create_compare_response,
     create_training_response, create_evaluation_response, create_list_models_response,
@@ -50,37 +55,6 @@ class TestInProcessAdapter:
         assert result["service"] == "Google Trends Quantile Forecaster API"
         assert result["version"] == "v1"
         assert "timestamp" in result
-    
-    def test_cache_stats_endpoint(self):
-        """Test cache stats endpoint returns correct response."""
-        # Mock cache data
-        self.mock_trends_service._cache = {"key1": "value1", "key2": "value2"}
-        self.mock_trends_service._cache_ttl = 300
-        self.mock_trends_service.rate_limit_counter = 5
-        self.mock_trends_service.max_requests_per_minute = 60
-        
-        result = self.adapter.cache_stats()
-        
-        assert result["status"] == "success"
-        assert result["cache_stats"]["cache_size"] == 2
-        assert result["cache_stats"]["cache_ttl"] == 300
-        assert result["cache_stats"]["rate_limit_counter"] == 5
-        assert result["cache_stats"]["max_requests_per_minute"] == 60
-        assert "timestamp" in result
-    
-    def test_cache_clear_endpoint(self):
-        """Test cache clear endpoint returns correct response."""
-        # Mock cache with some data
-        self.mock_trends_service._cache = {"key1": "value1"}
-        
-        result = self.adapter.cache_clear()
-        
-        assert result["status"] == "success"
-        assert result["message"] == "Trends cache cleared successfully"
-        assert "timestamp" in result
-        
-        # Verify cache was cleared
-        assert len(self.mock_trends_service._cache) == 0
     
     def test_trends_summary_endpoint(self):
         """Test trends summary endpoint with mocked data."""

@@ -62,13 +62,14 @@ class AgentValidator:
                 f"Minimum required: {self.min_confidence}"
             )
         
-        # Validate keywords
-        keyword_result = self._validate_keywords(slots.keywords, intent)
-        if not keyword_result.is_valid:
-            result.is_valid = False
-            result.errors.extend(keyword_result.errors)
-        if keyword_result.warnings:
-            result.warnings.extend(keyword_result.warnings)
+        # Validate keywords for intents that require them
+        if intent not in [AgentIntent.HEALTH, AgentIntent.EVALUATE]:
+            keyword_result = self._validate_keywords(slots.keywords, intent)
+            if not keyword_result.is_valid:
+                result.is_valid = False
+                result.errors.extend(keyword_result.errors)
+            if keyword_result.warnings:
+                result.warnings.extend(keyword_result.warnings)
         
         # Validate intent-specific parameters
         if intent in [AgentIntent.FORECAST, AgentIntent.TRAIN]:
@@ -140,7 +141,7 @@ class AgentValidator:
         result = ValidationResult(is_valid=True)
         
         # Keywords are required for most intents
-        if intent not in [AgentIntent.HEALTH, AgentIntent.CACHE_STATS, AgentIntent.CACHE_CLEAR, AgentIntent.EVALUATE]:
+        if intent not in [AgentIntent.HEALTH, AgentIntent.EVALUATE]:
             if not keywords:
                 result.is_valid = False
                 result.errors.append(
@@ -464,14 +465,6 @@ class AgentValidator:
             AgentIntent.HEALTH: (
                 "Health check requires no additional parameters.\n"
                 "Example: 'Is the service working?'"
-            ),
-            AgentIntent.CACHE_STATS: (
-                "Cache statistics requires no additional parameters.\n"
-                "Example: 'Show me cache statistics'"
-            ),
-            AgentIntent.CACHE_CLEAR: (
-                "Cache clear requires no additional parameters.\n"
-                "Example: 'Clear the cache'"
             ),
             AgentIntent.LIST_MODELS: (
                 "List models requires no additional parameters.\n"

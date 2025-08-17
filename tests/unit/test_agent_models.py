@@ -159,13 +159,11 @@ class TestIntentRecognition:
         intent = IntentRecognition(
             intent=AgentIntent.HEALTH,
             confidence=0.9,
-            slots={"keyword": "health"},
             raw_text="What's the health status?"
         )
         
         assert intent.intent == AgentIntent.HEALTH
         assert intent.confidence == 0.9
-        assert intent.slots == {"keyword": "health"}
         assert intent.raw_text == "What's the health status?"
     
     def test_confidence_validation(self):
@@ -191,22 +189,19 @@ class TestIntentRecognition:
         
         assert intent.intent == AgentIntent.FORECAST
         assert intent.confidence == 0.8
-        assert intent.slots == {}
-        assert intent.raw_text == ""
+        assert intent.raw_text is None
     
     def test_to_dict(self):
         """Test intent recognition serialization."""
         intent = IntentRecognition(
             intent=AgentIntent.COMPARE,
             confidence=0.85,
-            slots={"keywords": ["python", "javascript"]},
             raw_text="Compare python vs javascript"
         )
         
         data = intent.to_dict()
         assert data["intent"] == "compare"
         assert data["confidence"] == 0.85
-        assert data["slots"] == {"keywords": ["python", "javascript"]}
         assert data["raw_text"] == "Compare python vs javascript"
 
 
@@ -214,15 +209,14 @@ class TestAgentIntent:
     """Test agent intent enum."""
     
     def test_intent_values(self):
-        """Test intent enum values."""
+        """Test that all intent values are correct."""
         assert AgentIntent.FORECAST.value == "forecast"
         assert AgentIntent.COMPARE.value == "compare"
         assert AgentIntent.SUMMARY.value == "summary"
         assert AgentIntent.TRAIN.value == "train"
         assert AgentIntent.EVALUATE.value == "evaluate"
         assert AgentIntent.HEALTH.value == "health"
-        assert AgentIntent.CACHE_STATS.value == "cache_stats"
-        assert AgentIntent.CACHE_CLEAR.value == "cache_clear"
+        assert AgentIntent.LIST_MODELS.value == "list_models"
         assert AgentIntent.UNKNOWN.value == "unknown"
     
     def test_intent_comparison(self):
@@ -285,13 +279,11 @@ class TestFactoryFunctions:
         intent = create_intent_recognition(
             intent=AgentIntent.HEALTH,
             confidence=0.9,
-            slots={"keyword": "health"},
             raw_text="Health check"
         )
         
         assert intent.intent == AgentIntent.HEALTH
         assert intent.confidence == 0.9
-        assert intent.slots == {"keyword": "health"}
         assert intent.raw_text == "Health check"
     
     def test_create_intent_recognition_defaults(self):
@@ -300,5 +292,4 @@ class TestFactoryFunctions:
         
         assert intent.intent == AgentIntent.FORECAST
         assert intent.confidence == 0.8
-        assert intent.slots == {}
         assert intent.raw_text == "" 

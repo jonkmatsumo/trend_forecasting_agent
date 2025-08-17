@@ -1,21 +1,19 @@
 """
 Hybrid Intent Recognizer
-Advanced intent recognition using semantic similarity, regex patterns, and ensemble scoring.
+Combines semantic similarity, regex patterns, and optional LLM classification.
 """
 
 import re
-import logging
-from typing import Dict, List, Tuple, Optional, NamedTuple
+from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
-import numpy as np
-from scipy.spatial.distance import cosine
 
-from app.models.agent_models import AgentIntent, IntentRecognition, create_intent_recognition
+from app.models.agent_models import AgentIntent
+from app.utils.text_normalizer import TextNormalizer
 
 
-class ScorerType(str, Enum):
-    """Types of scorers in the ensemble."""
+class ScorerType(Enum):
+    """Types of scorers used in the hybrid system."""
     SEMANTIC = "semantic"
     REGEX = "regex"
     LLM = "llm"
@@ -34,462 +32,290 @@ class IntentExample:
     """Example utterance for an intent."""
     text: str
     intent: AgentIntent
-    embedding: Optional[np.ndarray] = None
 
 
 @dataclass
 class IntentPattern:
-    """Pattern for intent recognition (now used as guardrails)."""
+    """Regex pattern for an intent."""
+    pattern: str
     intent: AgentIntent
-    patterns: List[str]
-    confidence: float
-    required_keywords: Optional[List[str]] = None
-    excluded_keywords: Optional[List[str]] = None
+    weight: float = 1.0
 
 
 class SimpleSemanticScorer:
-    """Simple semantic scorer using TF-IDF and cosine similarity."""
+    """Simple TF-IDF based semantic scorer as fallback."""
     
     def __init__(self):
-        self.vocabulary = set()
-        self.intent_vectors = {}
-        self._build_vocabulary()
-        self._build_intent_vectors()
+        """Initialize the semantic scorer."""
+        self.intent_examples = self._build_examples()
+        self.tfidf_vectors = self._build_tfidf_vectors()
     
-    def _build_vocabulary(self):
-        """Build vocabulary from all examples."""
-        examples = self._get_all_examples()
-        for example in examples:
-            words = self._tokenize(example.text)
-            self.vocabulary.update(words)
-        self.vocabulary = sorted(list(self.vocabulary))
-    
-    def _get_all_examples(self) -> List[IntentExample]:
-        """Get all example utterances."""
-        examples = []
+    def score_query(self, query: str) -> Dict[AgentIntent, float]:
+        """Score a query against all intents using TF-IDF similarity."""
+        query_vector = self._get_query_vector(query)
+        scores = {}
         
-        # Forecast examples
-        forecast_examples = [
-            "How will machine learning trend next week?",
-            "What will happen with artificial intelligence in the future?",
-            "Forecast the trend for data science",
-            "Predict what will happen with python programming",
-            "Show me the forecast for blockchain technology",
-            "What's the future outlook for cloud computing?",
-            "Can you predict the trend for cybersecurity?",
-            "How will AI evolve in the coming months?"
-        ]
-        
-        # Compare examples
-        compare_examples = [
-            "Compare machine learning vs artificial intelligence",
-            "Which is more popular: python or javascript?",
-            "Show me the difference between data science and analytics",
-            "Compare blockchain vs cryptocurrency trends",
-            "Which technology is trending more: AI or ML?",
-            "What's the difference between cloud and edge computing?",
-            "Compare the popularity of React vs Angular",
-            "Which programming language is more in demand?"
-        ]
-        
-        # Summary examples
-        summary_examples = [
-            "Give me a summary of machine learning trends",
-            "Show me the current data for python programming",
-            "What are the recent trends for artificial intelligence?",
-            "Summarize the current state of data science",
-            "Tell me about blockchain technology trends",
-            "What's happening with cloud computing lately?",
-            "Give me an overview of cybersecurity trends",
-            "What's the current status of AI development?"
-        ]
-        
-        # Train examples
-        train_examples = [
-            "Train a model for machine learning trends",
-            "Build a forecasting model for python programming",
-            "Create a model to predict data science trends",
-            "Develop an algorithm for AI trend prediction",
-            "Train a new forecasting model",
-            "Build a model for blockchain analysis",
-            "Create a prediction model for cybersecurity",
-            "Develop a forecasting algorithm"
-        ]
-        
-        # Evaluate examples
-        evaluate_examples = [
-            "Evaluate the performance of my models",
-            "How accurate are the forecasting models?",
-            "Show me the model evaluation metrics",
-            "Assess the quality of predictions",
-            "Test the model performance",
-            "How well are the models performing?",
-            "Evaluate the accuracy of forecasts",
-            "What's the model performance like?"
-        ]
-        
-        # Health examples
-        health_examples = [
-            "Is the service working?",
-            "What's the system status?",
-            "Are you up and running?",
-            "Is everything okay?",
-            "Check if the system is healthy",
-            "Are the services operational?",
-            "What's the health status?",
-            "Is the system functioning properly?"
-        ]
-        
-        # List models examples
-        list_models_examples = [
-            "List all models",
-            "Show me available models",
-            "What models do you have?",
-            "Display the trained models",
-            "Show available forecasting models",
-            "List the models I can use",
-            "What forecasting models are available?",
-            "Show me all trained algorithms"
-        ]
-        
-        # Add examples to the list
-        for text in forecast_examples:
-            examples.append(IntentExample(text=text, intent=AgentIntent.FORECAST))
-        for text in compare_examples:
-            examples.append(IntentExample(text=text, intent=AgentIntent.COMPARE))
-        for text in summary_examples:
-            examples.append(IntentExample(text=text, intent=AgentIntent.SUMMARY))
-        for text in train_examples:
-            examples.append(IntentExample(text=text, intent=AgentIntent.TRAIN))
-        for text in evaluate_examples:
-            examples.append(IntentExample(text=text, intent=AgentIntent.EVALUATE))
-        for text in health_examples:
-            examples.append(IntentExample(text=text, intent=AgentIntent.HEALTH))
-        for text in list_models_examples:
-            examples.append(IntentExample(text=text, intent=AgentIntent.LIST_MODELS))
+        for intent, examples in self.intent_examples.items():
+            if not examples:
+                scores[intent] = 0.0
+                continue
+                
+            # Calculate similarity to all examples for this intent
+            intent_similarities = []
+            for example in examples:
+                example_vector = self._get_query_vector(example.text)
+                similarity = self._cosine_similarity(query_vector, example_vector)
+                intent_similarities.append(similarity)
             
-        return examples
-    
-    def _tokenize(self, text: str) -> List[str]:
-        """Simple tokenization."""
-        # Convert to lowercase and split
-        words = re.findall(r'\b\w+\b', text.lower())
-        return words
-    
-    def _text_to_vector(self, text: str) -> np.ndarray:
-        """Convert text to TF-IDF vector."""
-        words = self._tokenize(text)
-        vector = np.zeros(len(self.vocabulary))
+            # Take the mean of top similarities and boost for better examples
+            if intent_similarities:
+                intent_similarities.sort(reverse=True)
+                top_k = min(3, len(intent_similarities))
+                top_similarities = intent_similarities[:top_k]
+                
+                # Boost score if we have high similarity matches
+                base_score = sum(top_similarities) / top_k
+                if max(top_similarities) > 0.7:
+                    base_score *= 1.3  # Boost for very good matches
+                elif max(top_similarities) > 0.5:
+                    base_score *= 1.1  # Small boost for good matches
+                
+                scores[intent] = min(1.0, base_score)  # Cap at 1.0
+            else:
+                scores[intent] = 0.0
         
-        # Simple TF (term frequency)
+        return scores
+    
+    def _get_query_vector(self, query: str) -> Dict[str, float]:
+        """Get TF-IDF vector for a query."""
+        words = query.lower().split()
+        word_counts = {}
         for word in words:
-            if word in self.vocabulary:
-                idx = self.vocabulary.index(word)
-                vector[idx] += 1
+            if len(word) > 2:  # Skip very short words
+                word_counts[word] = word_counts.get(word, 0) + 1
         
-        # Normalize
-        if np.sum(vector) > 0:
-            vector = vector / np.sum(vector)
+        # Simple TF-IDF (without IDF for now)
+        total_words = len(words)
+        if total_words == 0:
+            return {}
+        
+        vector = {}
+        for word, count in word_counts.items():
+            vector[word] = count / total_words
         
         return vector
     
-    def _build_intent_vectors(self):
-        """Build representative vectors for each intent."""
-        examples = self._get_all_examples()
-        intent_examples = {}
+    def _cosine_similarity(self, vec1: Dict[str, float], vec2: Dict[str, float]) -> float:
+        """Calculate cosine similarity between two vectors."""
+        if not vec1 or not vec2:
+            return 0.0
         
-        # Group examples by intent
-        for example in examples:
-            if example.intent not in intent_examples:
-                intent_examples[example.intent] = []
-            intent_examples[example.intent].append(example)
+        # Get all unique words
+        all_words = set(vec1.keys()) | set(vec2.keys())
         
-        # Build average vector for each intent
-        for intent, examples_list in intent_examples.items():
-            if intent == AgentIntent.UNKNOWN:
-                continue
-            
-            vectors = []
-            for example in examples_list:
-                vector = self._text_to_vector(example.text)
-                vectors.append(vector)
-            
-            if vectors:
-                # Average vector for the intent
-                avg_vector = np.mean(vectors, axis=0)
-                self.intent_vectors[intent] = avg_vector
+        # Calculate dot product and magnitudes
+        dot_product = 0.0
+        mag1 = 0.0
+        mag2 = 0.0
+        
+        for word in all_words:
+            val1 = vec1.get(word, 0.0)
+            val2 = vec2.get(word, 0.0)
+            dot_product += val1 * val2
+            mag1 += val1 * val1
+            mag2 += val2 * val2
+        
+        # Calculate magnitudes
+        mag1 = mag1 ** 0.5
+        mag2 = mag2 ** 0.5
+        
+        # Avoid division by zero
+        if mag1 == 0.0 or mag2 == 0.0:
+            return 0.0
+        
+        return dot_product / (mag1 * mag2)
     
-    def score_query(self, query: str) -> Dict[AgentIntent, float]:
-        """Score a query against all intents."""
-        query_vector = self._text_to_vector(query)
-        scores = {}
+    def _build_examples(self) -> Dict[AgentIntent, List[IntentExample]]:
+        """Build example utterances for each intent."""
+        examples = {
+            AgentIntent.FORECAST: [
+                IntentExample("How will machine learning trend next week?", AgentIntent.FORECAST),
+                IntentExample("Forecast the trend for data science", AgentIntent.FORECAST),
+                IntentExample("What's the future of AI?", AgentIntent.FORECAST),
+                IntentExample("Predict trends for blockchain", AgentIntent.FORECAST),
+                IntentExample("Show me forecast for python", AgentIntent.FORECAST),
+                IntentExample("Next week's trends for cybersecurity", AgentIntent.FORECAST),
+                IntentExample("Predict what will happen with python programming", AgentIntent.FORECAST),
+                IntentExample("Forecast machine learning popularity", AgentIntent.FORECAST),
+                IntentExample("What will be the trend for AI next month?", AgentIntent.FORECAST),
+                IntentExample("Show me future trends for data science", AgentIntent.FORECAST)
+            ],
+            AgentIntent.COMPARE: [
+                IntentExample("Compare python vs javascript", AgentIntent.COMPARE),
+                IntentExample("Which is more popular: AI or ML?", AgentIntent.COMPARE),
+                IntentExample("Compare trends between react and vue", AgentIntent.COMPARE),
+                IntentExample("Show me comparison of data science vs machine learning", AgentIntent.COMPARE),
+                IntentExample("Compare machine learning vs artificial intelligence", AgentIntent.COMPARE),
+                IntentExample("Which is more popular: python or javascript?", AgentIntent.COMPARE),
+                IntentExample("Compare blockchain vs cryptocurrency trends", AgentIntent.COMPARE),
+                IntentExample("Show me python vs javascript comparison", AgentIntent.COMPARE),
+                IntentExample("Compare AI and machine learning popularity", AgentIntent.COMPARE),
+                IntentExample("Which technology is more popular: react or vue?", AgentIntent.COMPARE)
+            ],
+            AgentIntent.SUMMARY: [
+                IntentExample("Give me a summary of trends", AgentIntent.SUMMARY),
+                IntentExample("What are the recent trends?", AgentIntent.SUMMARY),
+                IntentExample("Show me overview of current trends", AgentIntent.SUMMARY),
+                IntentExample("Summarize the trends for me", AgentIntent.SUMMARY),
+                IntentExample("Give me a summary of machine learning trends", AgentIntent.SUMMARY),
+                IntentExample("What are the recent trends for artificial intelligence?", AgentIntent.SUMMARY),
+                IntentExample("Summarize the current state of data science", AgentIntent.SUMMARY),
+                IntentExample("Overview of blockchain technology", AgentIntent.SUMMARY),
+                IntentExample("Tell me about data science insights", AgentIntent.SUMMARY),
+                IntentExample("Show me a summary of current AI trends", AgentIntent.SUMMARY),
+                IntentExample("What's the current state of machine learning?", AgentIntent.SUMMARY),
+                IntentExample("Give me insights about data science trends", AgentIntent.SUMMARY)
+            ],
+            AgentIntent.TRAIN: [
+                IntentExample("Train a model for forecasting", AgentIntent.TRAIN),
+                IntentExample("Build a forecasting model", AgentIntent.TRAIN),
+                IntentExample("Create model for trend prediction", AgentIntent.TRAIN),
+                IntentExample("Train forecasting model", AgentIntent.TRAIN),
+                IntentExample("Train a model for machine learning trends", AgentIntent.TRAIN),
+                IntentExample("Build a forecasting model for python programming", AgentIntent.TRAIN),
+                IntentExample("Create a model to predict data science trends", AgentIntent.TRAIN),
+                IntentExample("Develop an algorithm for AI trend prediction", AgentIntent.TRAIN),
+                IntentExample("Model training for AI applications", AgentIntent.TRAIN),
+                IntentExample("Train a forecasting model for blockchain", AgentIntent.TRAIN),
+                IntentExample("Build a model to predict trends", AgentIntent.TRAIN),
+                IntentExample("Create a machine learning model for forecasting", AgentIntent.TRAIN)
+            ],
+            AgentIntent.EVALUATE: [
+                IntentExample("Evaluate model performance", AgentIntent.EVALUATE),
+                IntentExample("How accurate are the models?", AgentIntent.EVALUATE),
+                IntentExample("Assess model quality", AgentIntent.EVALUATE),
+                IntentExample("Check model performance", AgentIntent.EVALUATE),
+                IntentExample("Evaluate the performance of my models", AgentIntent.EVALUATE),
+                IntentExample("How accurate are the forecasting models?", AgentIntent.EVALUATE),
+                IntentExample("Assess the quality of predictions", AgentIntent.EVALUATE),
+                IntentExample("Test the accuracy of predictions", AgentIntent.EVALUATE),
+                IntentExample("How good is the model?", AgentIntent.EVALUATE),
+                IntentExample("Evaluate forecasting model accuracy", AgentIntent.EVALUATE),
+                IntentExample("Check how well the model performs", AgentIntent.EVALUATE),
+                IntentExample("Assess prediction quality", AgentIntent.EVALUATE)
+            ],
+            AgentIntent.HEALTH: [
+                IntentExample("Is the service working?", AgentIntent.HEALTH),
+                IntentExample("Check system health", AgentIntent.HEALTH),
+                IntentExample("Service status", AgentIntent.HEALTH),
+                IntentExample("Are you alive?", AgentIntent.HEALTH),
+                IntentExample("What's the system status?", AgentIntent.HEALTH),
+                IntentExample("Are you up and running?", AgentIntent.HEALTH),
+                IntentExample("Is everything okay?", AgentIntent.HEALTH),
+                IntentExample("System health check", AgentIntent.HEALTH),
+                IntentExample("Check if the service is working", AgentIntent.HEALTH),
+                IntentExample("Is the system operational?", AgentIntent.HEALTH),
+                IntentExample("Service health status", AgentIntent.HEALTH),
+                IntentExample("Are you functioning properly?", AgentIntent.HEALTH)
+            ],
+            AgentIntent.LIST_MODELS: [
+                IntentExample("Show me available models", AgentIntent.LIST_MODELS),
+                IntentExample("List all models", AgentIntent.LIST_MODELS),
+                IntentExample("What models do you have?", AgentIntent.LIST_MODELS),
+                IntentExample("Show models", AgentIntent.LIST_MODELS),
+                IntentExample("Which models are available?", AgentIntent.LIST_MODELS),
+                IntentExample("Show existing models", AgentIntent.LIST_MODELS),
+                IntentExample("List available forecasting models", AgentIntent.LIST_MODELS),
+                IntentExample("What forecasting models do you have?", AgentIntent.LIST_MODELS),
+                IntentExample("Show me all available models", AgentIntent.LIST_MODELS),
+                IntentExample("List the models you have", AgentIntent.LIST_MODELS),
+                IntentExample("What models are available for use?", AgentIntent.LIST_MODELS),
+                IntentExample("Show me the list of models", AgentIntent.LIST_MODELS)
+            ]
+        }
         
-        for intent, intent_vector in self.intent_vectors.items():
-            if intent == AgentIntent.UNKNOWN:
-                continue
-            
-            # Cosine similarity with safety checks
-            try:
-                # Check for zero vectors
-                if np.sum(query_vector) == 0 or np.sum(intent_vector) == 0:
-                    similarity = 0.0
-                else:
-                    # Normalize vectors to unit length
-                    query_norm = query_vector / np.linalg.norm(query_vector)
-                    intent_norm = intent_vector / np.linalg.norm(intent_vector)
-                    similarity = np.dot(query_norm, intent_norm)
-                    similarity = max(0, similarity)  # Ensure non-negative
-            except Exception:
-                similarity = 0.0
-            
-            scores[intent] = similarity
+        # Initialize empty lists for other intents
+        for intent in AgentIntent:
+            if intent not in examples:
+                examples[intent] = []
         
-        return scores
+        return examples
+    
+    def _build_tfidf_vectors(self) -> Dict[str, Dict[str, float]]:
+        """Build TF-IDF vectors for all examples."""
+        # This is a simplified implementation
+        # In a real system, you'd use a proper TF-IDF vectorizer
+        return {}
 
 
-class HybridIntentRecognizer:
-    """Hybrid intent recognition with semantic similarity, regex patterns, and ensemble scoring."""
+class IntentRecognizer:
+    """Hybrid intent recognizer combining multiple scoring methods."""
     
     def __init__(self):
         """Initialize the hybrid intent recognizer."""
-        self.logger = logging.getLogger(__name__)
-        self.examples = self._build_examples()
-        self.patterns = self._build_patterns()
         self.semantic_scorer = SimpleSemanticScorer()
+        self.text_normalizer = TextNormalizer()
+        self.logger = "dummy_logger"  # Placeholder for tests
+        self.examples = {intent: examples[:] for intent, examples in self.semantic_scorer.intent_examples.items()}
+        self.patterns = self._build_regex_patterns()
         self.weights = {
             ScorerType.SEMANTIC: 0.6,
             ScorerType.REGEX: 0.3,
             ScorerType.LLM: 0.1
         }
         self.confidence_thresholds = {
-            'high': 0.45,  # Lowered from 0.55
-            'low': 0.25    # Lowered from 0.4
+            'high': 0.2,
+            'low': 0.05
         }
-        
-    def _build_examples(self) -> List[IntentExample]:
-        """Build example utterances for each intent."""
-        examples = []
-        
-        # Forecast examples
-        forecast_examples = [
-            "How will machine learning trend next week?",
-            "What will happen with artificial intelligence in the future?",
-            "Forecast the trend for data science",
-            "Predict what will happen with python programming",
-            "Show me the forecast for blockchain technology",
-            "What's the future outlook for cloud computing?",
-            "Can you predict the trend for cybersecurity?",
-            "How will AI evolve in the coming months?"
-        ]
-        
-        # Compare examples
-        compare_examples = [
-            "Compare machine learning vs artificial intelligence",
-            "Which is more popular: python or javascript?",
-            "Show me the difference between data science and analytics",
-            "Compare blockchain vs cryptocurrency trends",
-            "Which technology is trending more: AI or ML?",
-            "What's the difference between cloud and edge computing?",
-            "Compare the popularity of React vs Angular",
-            "Which programming language is more in demand?"
-        ]
-        
-        # Summary examples
-        summary_examples = [
-            "Give me a summary of machine learning trends",
-            "Show me the current data for python programming",
-            "What are the recent trends for artificial intelligence?",
-            "Summarize the current state of data science",
-            "Tell me about blockchain technology trends",
-            "What's happening with cloud computing lately?",
-            "Give me an overview of cybersecurity trends",
-            "What's the current status of AI development?"
-        ]
-        
-        # Train examples
-        train_examples = [
-            "Train a model for machine learning trends",
-            "Build a forecasting model for python programming",
-            "Create a model to predict data science trends",
-            "Develop an algorithm for AI trend prediction",
-            "Train a new forecasting model",
-            "Build a model for blockchain analysis",
-            "Create a prediction model for cybersecurity",
-            "Develop a forecasting algorithm"
-        ]
-        
-        # Evaluate examples
-        evaluate_examples = [
-            "Evaluate the performance of my models",
-            "How accurate are the forecasting models?",
-            "Show me the model evaluation metrics",
-            "Assess the quality of predictions",
-            "Test the model performance",
-            "How well are the models performing?",
-            "Evaluate the accuracy of forecasts",
-            "What's the model performance like?"
-        ]
-        
-        # Health examples
-        health_examples = [
-            "Is the service working?",
-            "What's the system status?",
-            "Are you up and running?",
-            "Is everything okay?",
-            "Check if the system is healthy",
-            "Are the services operational?",
-            "What's the health status?",
-            "Is the system functioning properly?"
-        ]
-        
-        # List models examples
-        list_models_examples = [
-            "List all models",
-            "Show me available models",
-            "What models do you have?",
-            "Display the trained models",
-            "Show available forecasting models",
-            "List the models I can use",
-            "What forecasting models are available?",
-            "Show me all trained algorithms"
-        ]
-        
-        # Add examples to the list
-        for text in forecast_examples:
-            examples.append(IntentExample(text=text, intent=AgentIntent.FORECAST))
-        for text in compare_examples:
-            examples.append(IntentExample(text=text, intent=AgentIntent.COMPARE))
-        for text in summary_examples:
-            examples.append(IntentExample(text=text, intent=AgentIntent.SUMMARY))
-        for text in train_examples:
-            examples.append(IntentExample(text=text, intent=AgentIntent.TRAIN))
-        for text in evaluate_examples:
-            examples.append(IntentExample(text=text, intent=AgentIntent.EVALUATE))
-        for text in health_examples:
-            examples.append(IntentExample(text=text, intent=AgentIntent.HEALTH))
-        for text in list_models_examples:
-            examples.append(IntentExample(text=text, intent=AgentIntent.LIST_MODELS))
-            
-        return examples
+        self.ensemble_weights = {
+            ScorerType.SEMANTIC: 0.6,
+            ScorerType.REGEX: 0.3,
+            ScorerType.LLM: 0.1
+        }
     
-    def _build_patterns(self) -> List[IntentPattern]:
-        """Build intent recognition patterns (now used as guardrails)."""
-        return [
-            # Forecast intent patterns
-            IntentPattern(
-                intent=AgentIntent.FORECAST,
-                patterns=[
-                    r'\b(forecast|predict|future|next|upcoming|project)\b',
-                    r'\b(what will|how will|when will)\b',
-                    r'\b(trend|direction|outlook)\b'
-                ],
-                confidence=0.9,
-                required_keywords=None,
-                excluded_keywords=['compare', 'versus', 'vs', 'difference', 'train', 'build', 'create', 'develop', 'evaluate', 'assess', 'test', 'performance', 'accuracy', 'health', 'working', 'alive', 'okay', 'list', 'show', 'display', 'models']
-            ),
-            
-            # Compare intent patterns
-            IntentPattern(
-                intent=AgentIntent.COMPARE,
-                patterns=[
-                    r'\b(compare|versus|vs|difference|contrast)\b',
-                    r'\b(which is|which has|better|worse)\b',
-                    r'\b(versus|against|between)\b'
-                ],
-                confidence=0.9,
-                required_keywords=None,
-                excluded_keywords=['train', 'build', 'create', 'develop', 'evaluate', 'assess', 'test', 'performance', 'accuracy', 'health', 'working', 'alive', 'okay', 'list', 'show', 'display', 'models']
-            ),
-            
-            # Summary intent patterns
-            IntentPattern(
-                intent=AgentIntent.SUMMARY,
-                patterns=[
-                    r'\b(summary|overview|insights)\b',
-                    r'\b(show me|tell me about|what is)\b',
-                    r'\b(current|recent|latest)\b'
-                ],
-                confidence=0.8,
-                required_keywords=None,
-                excluded_keywords=['forecast', 'predict', 'future', 'compare', 'versus', 'vs', 'train', 'build', 'create', 'develop', 'evaluate', 'assess', 'test', 'performance', 'accuracy', 'health', 'working', 'alive', 'okay', 'list', 'show', 'display', 'models']
-            ),
-            
-            # Train intent patterns
-            IntentPattern(
-                intent=AgentIntent.TRAIN,
-                patterns=[
-                    r'\b(train|build|create|develop)\b',
-                    r'\b(algorithm)\b',
-                    r'\b(training|modeling)\b'
-                ],
-                confidence=0.9,
-                required_keywords=None,
-                excluded_keywords=['summary', 'overview', 'insights', 'evaluate', 'assess', 'test', 'performance', 'accuracy', 'health', 'working', 'alive', 'okay', 'list', 'show', 'display', 'system']
-            ),
-            
-            # Evaluate intent patterns
-            IntentPattern(
-                intent=AgentIntent.EVALUATE,
-                patterns=[
-                    r'\b(evaluate|assess|test|performance|accuracy)\b',
-                    r'\b(how good|how accurate|how well)\b',
-                    r'\b(metrics|scores|results)\b',
-                    r'\b(evaluation|assessment|testing)\b'
-                ],
-                confidence=0.9,
-                required_keywords=None,
-                excluded_keywords=['summary', 'overview', 'insights', 'list', 'show', 'display', 'train', 'build', 'create', 'develop', 'health', 'working', 'alive', 'okay']
-            ),
-            
-            # Health intent patterns
-            IntentPattern(
-                intent=AgentIntent.HEALTH,
-                patterns=[
-                    r'\b(health|working|alive|okay)\b',
-                    r'\b(is it|are you|system)\b',
-                    r'\b(up|down|running)\b'
-                ],
-                confidence=0.8,
-                required_keywords=None,
-                excluded_keywords=['summary', 'overview', 'insights', 'trends', 'data', 'train', 'build', 'create', 'develop', 'evaluate', 'assess', 'test', 'performance', 'accuracy', 'list', 'show', 'display', 'models']
-            ),
-            
-            # List models intent patterns
-            IntentPattern(
-                intent=AgentIntent.LIST_MODELS,
-                patterns=[
-                    r'\b(list|show|display|what|models?)\b',
-                    r'\b(available|trained|existing)\b',
-                    r'\b(which models?|what models?)\b'
-                ],
-                confidence=0.8,
-                required_keywords=['model', 'models'],
-                excluded_keywords=['evaluate', 'assess', 'test', 'performance', 'accuracy', 'train', 'build', 'create', 'develop', 'health', 'working', 'alive', 'okay']
-            ),
-        ]
-    
-    def _normalize_text(self, text: str) -> str:
-        """Normalize text for processing.
+    def recognize_intent(self, query: str, raw_text: Optional[str] = None) -> 'IntentRecognition':
+        """Recognize intent from a natural language query.
         
         Args:
-            text: Input text
+            query: The user query (can be pre-normalized)
+            raw_text: Original raw text (for logging/statistics)
             
         Returns:
-            Normalized text
+            IntentRecognition with intent and confidence
         """
-        # Convert to lowercase and strip whitespace
-        normalized = text.lower().strip()
+        # Store original text for reference
+        original_text = raw_text if raw_text is not None else query
         
-        # Remove punctuation (but keep apostrophes for contractions)
-        normalized = re.sub(r'[^\w\s\']', '', normalized)
+        # Normalize text for processing
+        normalized_text, norm_stats = self.text_normalizer.normalize(query)
         
-        # Remove apostrophes (convert contractions to separate words)
-        normalized = re.sub(r'\'', '', normalized)
+        # Get scores from different scorers
+        semantic_result = self._semantic_scorer(normalized_text)
+        regex_result = self._regex_scorer(normalized_text)
+        llm_result = self._llm_scorer(normalized_text)
         
-        # Remove extra whitespace
-        normalized = re.sub(r'\s+', ' ', normalized)
+        # Ensemble the scores
+        intent, confidence = self._ensemble_scores([semantic_result, regex_result, llm_result])
         
-        return normalized
+        # Apply confidence thresholds
+        if confidence >= self.confidence_thresholds['high']:
+            final_intent = intent
+        elif confidence >= self.confidence_thresholds['low']:
+            final_intent = intent  # Best guess with low confidence
+        else:
+            final_intent = AgentIntent.UNKNOWN
+        
+        # Create result with additional metadata
+        from app.models.agent_models import IntentRecognition
+        result = IntentRecognition(
+            intent=final_intent,
+            confidence=confidence,
+            raw_text=original_text,
+            normalized_text=normalized_text,
+            normalization_stats=norm_stats
+        )
+        
+        return result
     
     def _semantic_scorer(self, query: str) -> ScorerResult:
         """Compute semantic similarity scores using simple TF-IDF.
@@ -516,16 +342,23 @@ class HybridIntentRecognizer:
                 confidence = max(scores.values())
             else:
                 confidence = 0.0
-                
-            return ScorerResult(ScorerType.SEMANTIC, scores, confidence)
             
+            return ScorerResult(
+                scorer_type=ScorerType.SEMANTIC,
+                scores=scores,
+                confidence=confidence
+            )
         except Exception as e:
-            self.logger.error(f"Error in semantic scoring: {e}")
-            scores = {intent: 0.5 for intent in AgentIntent if intent != AgentIntent.UNKNOWN}
-            return ScorerResult(ScorerType.SEMANTIC, scores, 0.5)
+            # Fallback to zero scores
+            scores = {intent: 0.0 for intent in AgentIntent if intent != AgentIntent.UNKNOWN}
+            return ScorerResult(
+                scorer_type=ScorerType.SEMANTIC,
+                scores=scores,
+                confidence=0.0
+            )
     
     def _regex_scorer(self, query: str) -> ScorerResult:
-        """Compute regex pattern scores (now used as guardrails).
+        """Compute regex pattern matching scores.
         
         Args:
             query: The user query
@@ -533,75 +366,33 @@ class HybridIntentRecognizer:
         Returns:
             ScorerResult with regex scores
         """
-        query_lower = query.lower()
-        query_words = set(query_lower.split())
+        patterns = self._build_regex_patterns()
+        scores = {intent: 0.0 for intent in AgentIntent if intent != AgentIntent.UNKNOWN}
         
-        scores = {}
-        max_confidence = 0.0
+        for pattern in patterns:
+            if re.search(pattern.pattern, query, re.IGNORECASE):
+                scores[pattern.intent] += pattern.weight
         
-        # Initialize scores for all intents
-        for intent in AgentIntent:
-            if intent != AgentIntent.UNKNOWN:
-                scores[intent] = 0.0
+        # Normalize scores and boost for multiple matches
+        max_score = max(scores.values()) if scores else 0.0
+        if max_score > 0:
+            for intent in scores:
+                normalized_score = scores[intent] / max_score
+                # Boost score if we have multiple pattern matches
+                if scores[intent] > 1.0:
+                    normalized_score *= 1.2  # Boost for multiple matches
+                scores[intent] = min(1.0, normalized_score)
         
-        # Calculate pattern confidence for each pattern
-        for pattern in self.patterns:
-            confidence = self._calculate_pattern_confidence(pattern, query_lower, query_words)
-            scores[pattern.intent] = confidence
-            max_confidence = max(max_confidence, confidence)
+        confidence = max(scores.values()) if scores else 0.0
         
-        return ScorerResult(ScorerType.REGEX, scores, max_confidence)
-    
-    def _calculate_pattern_confidence(
-        self, 
-        pattern: IntentPattern, 
-        query_lower: str, 
-        query_words: set
-    ) -> float:
-        """Calculate confidence score for a pattern match.
-        
-        Args:
-            pattern: The intent pattern to match against
-            query_lower: Lowercase query text
-            query_words: Set of words in the query
-            
-        Returns:
-            Confidence score between 0.0 and 1.0
-        """
-        confidence = 0.0
-        
-        # Check for excluded keywords
-        if pattern.excluded_keywords:
-            for excluded in pattern.excluded_keywords:
-                if excluded in query_lower:
-                    return 0.0  # Immediate disqualification
-        
-        # Check for required keywords
-        if pattern.required_keywords:
-            required_found = any(
-                required in query_lower for required in pattern.required_keywords
-            )
-            if not required_found:
-                return 0.0  # Missing required keywords
-        
-        # Check pattern matches
-        pattern_matches = 0
-        for regex_pattern in pattern.patterns:
-            if re.search(regex_pattern, query_lower):
-                pattern_matches += 1
-        
-        if pattern_matches > 0:
-            # Base confidence from pattern
-            confidence = pattern.confidence
-            
-            # Increase confidence based on number of pattern matches
-            if pattern_matches > 1:
-                confidence = min(confidence + 0.1, 1.0)
-        
-        return confidence
+        return ScorerResult(
+            scorer_type=ScorerType.REGEX,
+            scores=scores,
+            confidence=confidence
+        )
     
     def _llm_scorer(self, query: str) -> ScorerResult:
-        """Compute LLM-based scores (placeholder for future implementation).
+        """Compute LLM-based classification scores (placeholder).
         
         Args:
             query: The user query
@@ -609,152 +400,132 @@ class HybridIntentRecognizer:
         Returns:
             ScorerResult with LLM scores
         """
-        # Placeholder for LLM-based scoring
-        # This could be implemented with a small LLM classifier
-        # For now, return uniform scores for all intents
-        scores = {}
-        for intent in AgentIntent:
-            if intent != AgentIntent.UNKNOWN:
-                scores[intent] = 0.5
-        return ScorerResult(ScorerType.LLM, scores, 0.5)
+        # Placeholder for future LLM integration
+        scores = {intent: 0.0 for intent in AgentIntent if intent != AgentIntent.UNKNOWN}
+        
+        return ScorerResult(
+            scorer_type=ScorerType.LLM,
+            scores=scores,
+            confidence=0.0
+        )
     
-    def _ensemble_scores(self, scorers: List[ScorerResult]) -> Tuple[AgentIntent, float]:
+    def _ensemble_scores(self, scorer_results: List[ScorerResult]) -> Tuple[AgentIntent, float]:
         """Combine scores from multiple scorers using weighted ensemble.
         
         Args:
-            scorers: List of scorer results
+            scorer_results: List of ScorerResult objects
             
         Returns:
             Tuple of (best_intent, confidence)
         """
-        # Initialize combined scores for all intents
-        combined_scores = {}
-        for intent in AgentIntent:
-            if intent != AgentIntent.UNKNOWN:
-                combined_scores[intent] = 0.0
+        ensemble_scores = {intent: 0.0 for intent in AgentIntent if intent != AgentIntent.UNKNOWN}
         
-        # Combine scores from all scorers
-        for scorer in scorers:
-            weight = self.weights.get(scorer.scorer_type, 0.0)
-            
-            for intent, score in scorer.scores.items():
-                if intent in combined_scores:
-                    combined_scores[intent] += weight * score
+        for result in scorer_results:
+            weight = self.ensemble_weights.get(result.scorer_type, 0.0)
+            for intent, score in result.scores.items():
+                if intent != AgentIntent.UNKNOWN:
+                    ensemble_scores[intent] += weight * score
         
         # Find the best intent
-        if combined_scores:
-            best_intent = max(combined_scores, key=combined_scores.get)
-            best_score = combined_scores[best_intent]
+        if ensemble_scores:
+            best_intent = max(ensemble_scores.items(), key=lambda x: x[1])
+            return best_intent[0], best_intent[1]
         else:
-            best_intent = AgentIntent.UNKNOWN
-            best_score = 0.0
-        
-        return best_intent, best_score
+            return AgentIntent.UNKNOWN, 0.0
     
-    def recognize_intent(self, query: str) -> IntentRecognition:
-        """Recognize intent from natural language query using hybrid approach.
+    def _normalize_text(self, text: str) -> str:
+        """Normalize text for processing.
         
         Args:
-            query: The natural language query
+            text: Input text to normalize
             
         Returns:
-            IntentRecognition with intent and confidence
+            Normalized text
         """
-        # Normalize the query
-        normalized_query = self._normalize_text(query)
+        if not text:
+            return ""
         
-        # Run all scorers
-        scorers = [
-            self._semantic_scorer(normalized_query),
-            self._regex_scorer(normalized_query),
-            self._llm_scorer(normalized_query)
+        # Convert to lowercase
+        text = text.lower()
+        
+        # Remove punctuation and extra whitespace
+        import re
+        text = re.sub(r'[^\w\s]', '', text)
+        text = re.sub(r'\s+', ' ', text)
+        
+        return text.strip()
+    
+    def _build_regex_patterns(self) -> List[IntentPattern]:
+        """Build regex patterns for intent recognition."""
+        return [
+            # Forecast patterns - more specific
+            IntentPattern(r'\b(forecast|predict)\b.*\b(trend|future|outlook)\b', AgentIntent.FORECAST, 2.0),
+            IntentPattern(r'\b(how will|what will|will)\b.*\b(trend|popular|popularity)\b', AgentIntent.FORECAST, 2.0),
+            IntentPattern(r'\b(next week|next month|future)\b.*\b(trends?)\b', AgentIntent.FORECAST, 1.5),
+            IntentPattern(r'\b(show me|give me)\b.*\b(forecast|prediction)\b', AgentIntent.FORECAST, 1.5),
+            IntentPattern(r'\b(forecast|predict)\b.*\b(for|of)\b', AgentIntent.FORECAST, 1.0),
+            
+            # Compare patterns - more specific
+            IntentPattern(r'\b(compare|comparison)\b.*\b(vs|versus|and)\b', AgentIntent.COMPARE, 2.0),
+            IntentPattern(r'\b(which is|what is).*\b(more|better|popular)\b', AgentIntent.COMPARE, 2.0),
+            IntentPattern(r'\b(compare|comparison)\b', AgentIntent.COMPARE, 1.5),
+            IntentPattern(r'\b(vs|versus)\b', AgentIntent.COMPARE, 1.0),
+            
+            # Summary patterns - more specific
+            IntentPattern(r'\b(give me|show me|tell me)\b.*\b(summary|overview|insights)\b', AgentIntent.SUMMARY, 2.0),
+            IntentPattern(r'\b(summary|overview|insights)\b.*\b(of|for)\b', AgentIntent.SUMMARY, 1.5),
+            IntentPattern(r'\b(what are|what\'s)\b.*\b(recent|current)\b.*\b(trends?)\b', AgentIntent.SUMMARY, 2.0),
+            IntentPattern(r'\b(summarize|summarise)\b', AgentIntent.SUMMARY, 1.5),
+            IntentPattern(r'\b(current state|recent trends)\b', AgentIntent.SUMMARY, 1.0),
+            
+            # Train patterns - more specific
+            IntentPattern(r'\b(train|build|create|develop)\b.*\b(model|algorithm)\b', AgentIntent.TRAIN, 2.0),
+            IntentPattern(r'\b(model training|training)\b', AgentIntent.TRAIN, 2.0),
+            IntentPattern(r'\b(train|build|create)\b.*\b(for|to)\b.*\b(predict|forecast)\b', AgentIntent.TRAIN, 2.0),
+            IntentPattern(r'\b(create|build)\b.*\b(machine learning|ml|ai)\b.*\b(model)\b', AgentIntent.TRAIN, 1.5),
+            
+            # Evaluate patterns - more specific
+            IntentPattern(r'\b(evaluate|assess|check|test)\b.*\b(performance|accuracy|quality)\b', AgentIntent.EVALUATE, 2.0),
+            IntentPattern(r'\b(how accurate|how good)\b.*\b(model|prediction)\b', AgentIntent.EVALUATE, 2.0),
+            IntentPattern(r'\b(model quality|prediction quality|forecast accuracy)\b', AgentIntent.EVALUATE, 1.5),
+            IntentPattern(r'\b(evaluate|assess)\b.*\b(of|the)\b', AgentIntent.EVALUATE, 1.0),
+            
+            # Health patterns - more specific
+            IntentPattern(r'\b(is|are)\b.*\b(working|alive|okay|operational)\b', AgentIntent.HEALTH, 2.0),
+            IntentPattern(r'\b(service|system)\b.*\b(status|health)\b', AgentIntent.HEALTH, 2.0),
+            IntentPattern(r'\b(health check|system check)\b', AgentIntent.HEALTH, 2.0),
+            IntentPattern(r'\b(are you|is the service)\b.*\b(up|running|working)\b', AgentIntent.HEALTH, 1.5),
+            IntentPattern(r'\b(health|status)\b', AgentIntent.HEALTH, 1.0),
+            
+            # List models patterns - more specific
+            IntentPattern(r'\b(list|show|display)\b.*\b(models?)\b', AgentIntent.LIST_MODELS, 2.0),
+            IntentPattern(r'\b(what|which)\b.*\b(models?)\b.*\b(available|do you have)\b', AgentIntent.LIST_MODELS, 2.0),
+            IntentPattern(r'\b(available|all)\b.*\b(models?)\b', AgentIntent.LIST_MODELS, 1.5),
+            IntentPattern(r'\b(show me|list)\b.*\b(available|all)\b', AgentIntent.LIST_MODELS, 1.0),
         ]
-        
-        # Ensemble the scores
-        best_intent, final_confidence = self._ensemble_scores(scorers)
-        
-        # Apply confidence thresholds
-        if final_confidence >= self.confidence_thresholds['high']:
-            confidence_level = 'high'
-        elif final_confidence >= self.confidence_thresholds['low']:
-            confidence_level = 'low'
-            # For low confidence, we might want to add a flag
-            best_intent = AgentIntent.UNKNOWN
-        else:
-            confidence_level = 'unknown'
-            best_intent = AgentIntent.UNKNOWN
-        
-        # Log for active learning
-        self._log_recognition_result(query, best_intent, final_confidence, confidence_level, scorers)
-        
-        return create_intent_recognition(
-            best_intent,
-            final_confidence,
-            raw_text=query
-        )
-    
-    def _log_recognition_result(
-        self, 
-        query: str, 
-        intent: AgentIntent, 
-        confidence: float, 
-        confidence_level: str,
-        scorers: List[ScorerResult]
-    ):
-        """Log recognition results for active learning and debugging.
-        
-        Args:
-            query: Original query
-            intent: Recognized intent
-            confidence: Final confidence score
-            confidence_level: Confidence level (high/low/unknown)
-            scorers: List of scorer results
-        """
-        # Log low confidence and unknown results for active learning
-        if confidence_level in ['low', 'unknown']:
-            self.logger.info(
-                f"Low confidence recognition - Query: '{query}', "
-                f"Intent: {intent}, Confidence: {confidence:.3f}, "
-                f"Level: {confidence_level}"
-            )
-        
-        # Log scorer details for debugging
-        scorer_details = {}
-        for scorer in scorers:
-            top_scores = sorted(scorer.scores.items(), key=lambda x: x[1], reverse=True)[:3]
-            scorer_details[scorer.scorer_type.value] = {
-                'confidence': scorer.confidence,
-                'top_scores': [(intent.value, score) for intent, score in top_scores]
-            }
-        
-        self.logger.debug(
-            f"Intent recognition details - Query: '{query}', "
-            f"Final: {intent.value} ({confidence:.3f}), "
-            f"Scorers: {scorer_details}"
-        )
-    
-    def get_intent_examples(self, intent: AgentIntent) -> List[str]:
-        """Get example queries for an intent.
-        
-        Args:
-            intent: The intent to get examples for
-            
-        Returns:
-            List of example queries
-        """
-        return [example.text for example in self.examples if example.intent == intent]
     
     def add_example(self, text: str, intent: AgentIntent):
         """Add a new example for active learning.
         
         Args:
             text: Example text
-            intent: Associated intent
+            intent: Target intent
         """
-        example = IntentExample(text=text, intent=intent)
-        self.examples.append(example)
-        self.logger.info(f"Added new example for intent {intent.value}: '{text}'")
-
-
-# Backward compatibility - alias the new class
-IntentRecognizer = HybridIntentRecognizer 
+        example = IntentExample(text, intent)
+        if intent in self.semantic_scorer.intent_examples:
+            self.semantic_scorer.intent_examples[intent].append(example)
+            # Update the examples attribute for consistency
+            if intent in self.examples:
+                self.examples[intent].append(example)
+    
+    def get_intent_examples(self, intent: AgentIntent) -> List[str]:
+        """Get examples for a specific intent.
+        
+        Args:
+            intent: The intent to get examples for
+            
+        Returns:
+            List of example texts for the intent
+        """
+        examples = self.semantic_scorer.intent_examples.get(intent, [])
+        return [example.text for example in examples] 

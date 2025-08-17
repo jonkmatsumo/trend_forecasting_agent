@@ -17,8 +17,6 @@ class AgentIntent(str, Enum):
     TRAIN = "train"
     EVALUATE = "evaluate"
     HEALTH = "health"
-    CACHE_STATS = "cache_stats"
-    CACHE_CLEAR = "cache_clear"
     LIST_MODELS = "list_models"
     UNKNOWN = "unknown"
 
@@ -71,25 +69,31 @@ class AgentResponse:
 
 @dataclass
 class IntentRecognition:
-    """Intent recognition result."""
+    """Result of intent recognition."""
     intent: AgentIntent
     confidence: float
-    slots: Dict[str, Any] = field(default_factory=dict)
-    raw_text: str = ""
+    raw_text: Optional[str] = None
+    normalized_text: Optional[str] = None
+    normalization_stats: Optional[Dict[str, Any]] = None
     
     def __post_init__(self):
-        """Validate confidence score."""
+        """Validate the intent recognition after initialization."""
         if not 0.0 <= self.confidence <= 1.0:
             raise ValueError("Confidence must be between 0.0 and 1.0")
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
-        return {
+        result = {
             'intent': self.intent.value,
-            'confidence': self.confidence,
-            'slots': self.slots,
-            'raw_text': self.raw_text
+            'confidence': self.confidence
         }
+        if self.raw_text is not None:
+            result['raw_text'] = self.raw_text
+        if self.normalized_text is not None:
+            result['normalized_text'] = self.normalized_text
+        if self.normalization_stats is not None:
+            result['normalization_stats'] = self.normalization_stats
+        return result
 
 
 @dataclass
@@ -146,13 +150,15 @@ def create_agent_error(
 def create_intent_recognition(
     intent: AgentIntent,
     confidence: float,
-    slots: Optional[Dict[str, Any]] = None,
-    raw_text: str = ""
+    raw_text: str = "",
+    normalized_text: Optional[str] = None,
+    normalization_stats: Optional[Dict[str, Any]] = None
 ) -> IntentRecognition:
     """Create an intent recognition result with consistent structure."""
     return IntentRecognition(
         intent=intent,
         confidence=confidence,
-        slots=slots or {},
-        raw_text=raw_text
+        raw_text=raw_text,
+        normalized_text=normalized_text,
+        normalization_stats=normalization_stats
     ) 

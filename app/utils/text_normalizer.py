@@ -1,0 +1,280 @@
+"""
+Text Normalization Utilities
+Robust Unicode handling and standardization for intent recognition.
+Supports dual-view normalization: loose for keywords, strict for regex slots.
+"""
+
+import re
+import unicodedata
+from typing import Optional, Tuple, Dict
+
+try:
+    import ftfy
+    FTFY_AVAILABLE = True
+except ImportError:
+    FTFY_AVAILABLE = False
+    ftfy = None
+
+# Character cleanup patterns
+_ZERO_WIDTH_RE = re.compile(r'[\u200B-\u200D\u2060\uFEFF]')
+_CONTROL_RE = re.compile(r'[\u0000-\u0008\u000B-\u000C\u000E-\u001F\u007F]')  # Exclude \t, \n, \r
+
+# Regex patterns for normalization
+_VS_RE = re.compile(r'\b(versus|vs\.?)\b', flags=re.IGNORECASE)
+_WS_RE = re.compile(r'\s+')  # Standard whitespace collapse
+# Leading/trailing punctuation to trim, but keep internal punctuation (/, %, :, .)
+_TRIM_RE = re.compile(r'^[\s\.,;:!?(){}\[\]"\']+|[\s\.,;:!?(){}\[\]"\']+$')
+
+# Smart punctuation mapping
+CHAR_MAP = {
+    "\u2018": "'", "\u2019": "'",   # ' '
+    "\u201C": '"', "\u201D": '"',   # " "
+    "\u2013": "-", "\u2014": "-",   # – —
+}
+
+
+def _map_chars(s: str) -> str:
+    """Map smart punctuation to ASCII equivalents."""
+    return ''.join(CHAR_MAP.get(ch, ch) for ch in s)
+
+
+def normalize_views(text: str, 
+                   *, 
+                   trim_punctuation: bool = True, 
+                   canonicalize_vs: bool = True, 
+                   casefold_strict: bool = True) -> Tuple[str, str, Dict]:
+    """
+    Normalize text with dual-view approach: loose for keywords, strict for regex slots.
+    
+    Args:
+        text: Input text to normalize
+        trim_punctuation: Whether to trim leading/trailing punctuation in strict view
+        canonicalize_vs: Whether to normalize "versus" variants to "vs" in strict view
+        casefold_strict: Whether to apply case folding in strict view
+        
+    Returns:
+        Tuple of (norm_loose, norm_strict, stats)
+        - norm_loose: Repaired Unicode, standardized punctuation/whitespace (good for keywords)
+        - norm_strict: norm_loose + casefold, versus→vs, optional edge-punct trim (good for regex slots)
+        - stats: Normalization statistics and flags
+    """
+    if not text:
+        return text, text, get_normalization_stats(text, text)
+    
+    # Store original for stats
+    original = text
+    
+    # 1) Character cleanup (applied to both views)
+    t = _ZERO_WIDTH_RE.sub('', text)
+    t = _CONTROL_RE.sub('', t)
+    
+    # 2) Base repairs (applied to both views)
+    if FTFY_AVAILABLE:
+        t = ftfy.fix_text(t)
+    t = unicodedata.normalize("NFKC", t)
+    t = _map_chars(t)
+    t = _WS_RE.sub(" ", t).strip()
+    
+    # Loose view: keep case and edge punctuation
+    norm_loose = t
+    
+    # Strict view: apply additional normalizations
+    s = t.casefold() if casefold_strict else t
+    if canonicalize_vs:
+        s = _VS_RE.sub("vs", s)
+    if trim_punctuation:
+        s = _TRIM_RE.sub("", s)
+    
+    # Enhanced statistics
+    stats = get_normalization_stats(original, s)
+    stats.update({
+        "zero_width_removed": bool(_ZERO_WIDTH_RE.search(original)),
+        "controls_removed": bool(_CONTROL_RE.search(original)),
+        "quotes_fixed": any(q in original for q in ("\u2018", "\u2019", "\u201C", "\u201D")),
+        "dashes_fixed": any(d in original for d in ("\u2013", "\u2014")),
+        "ws_collapsed": "  " in original or "\u00A0" in original or "\t" in original or "\n" in original or "\r" in original,
+        "casefold_applied": casefold_strict,
+        "trim_punctuation": trim_punctuation,
+        "canon_vs": canonicalize_vs,
+        "loose_length": len(norm_loose),
+        "strict_length": len(s),
+    })
+    
+    return norm_loose, s, stats
+
+
+def normalize_with_ftfy(text: str, 
+                       casefold: bool = True,
+                       canonicalize_vs: bool = True,
+                       trim_punctuation: bool = True) -> str:
+    """
+    Normalize text for robust regex/rule matching while preserving meaning.
+    
+    Note: This function returns the strict view for backward compatibility.
+    For dual-view normalization, use normalize_views() instead.
+    
+    Args:
+        text: Input text to normalize
+        casefold: Whether to apply case folding (stronger than lowercasing)
+        canonicalize_vs: Whether to normalize "versus" variants to "vs"
+        trim_punctuation: Whether to trim leading/trailing punctuation
+        
+    Returns:
+        Normalized text suitable for intent recognition (strict view)
+    """
+    # Use the new dual-view function and return strict view
+    _, strict, _ = normalize_views(
+        text,
+        trim_punctuation=trim_punctuation,
+        canonicalize_vs=canonicalize_vs,
+        casefold_strict=casefold
+    )
+    return strict
+
+
+def get_normalization_stats(original: str, normalized: str, max_compare: int = 4096) -> Dict:
+    """
+    Get statistics about the normalization process.
+    
+    Args:
+        original: Original text
+        normalized: Normalized text
+        max_compare: Maximum characters to compare for detailed stats
+        
+    Returns:
+        Dictionary with normalization statistics
+    """
+    if not original and not normalized:
+        return {
+            'characters_changed': 0,
+            'length_change': 0,
+            'vs_canonicalized': False,
+            'unicode_fixed': False,
+            'original_length': 0,
+            'normalized_length': 0
+        }
+    
+    # Enhanced character change detection
+    n = min(len(original), len(normalized), max_compare)
+    replaced = sum(1 for i in range(n) if original[i] != normalized[i])
+    replaced += abs(len(original) - len(normalized))
+    
+    return {
+        'characters_changed': replaced,
+        'length_change': len(normalized) - len(original),
+        'vs_canonicalized': bool(_VS_RE.search(original.lower())) and (" vs " in normalized or normalized.endswith("vs")),
+        'unicode_fixed': FTFY_AVAILABLE and (original != normalized),
+        'original_length': len(original),
+        'normalized_length': len(normalized)
+    }
+
+
+class TextNormalizer:
+    """Configurable text normalizer with statistics tracking and dual-view support."""
+    
+    def __init__(self, 
+                 casefold: bool = True,
+                 canonicalize_vs: bool = True,
+                 trim_punctuation: bool = True):
+        """
+        Initialize text normalizer.
+        
+        Args:
+            casefold: Whether to apply case folding
+            canonicalize_vs: Whether to normalize "versus" variants
+            trim_punctuation: Whether to trim leading/trailing punctuation
+        """
+        self.casefold = casefold
+        self.canonicalize_vs = canonicalize_vs
+        self.trim_punctuation = trim_punctuation
+    
+    def normalize(self, text: str) -> Tuple[str, Dict]:
+        """
+        Normalize text and return statistics (returns strict view for backward compatibility).
+        
+        Args:
+            text: Input text to normalize
+            
+        Returns:
+            Tuple of (normalized_text, statistics) - normalized_text is the strict view
+        """
+        _, strict, stats = normalize_views(
+            text,
+            trim_punctuation=self.trim_punctuation,
+            canonicalize_vs=self.canonicalize_vs,
+            casefold_strict=self.casefold
+        )
+        return strict, stats
+    
+    def normalize_only(self, text: str) -> str:
+        """
+        Normalize text without statistics (returns strict view for backward compatibility).
+        
+        Args:
+            text: Input text to normalize
+            
+        Returns:
+            Normalized text (strict view)
+        """
+        _, strict, _ = normalize_views(
+            text,
+            trim_punctuation=self.trim_punctuation,
+            canonicalize_vs=self.canonicalize_vs,
+            casefold_strict=self.casefold
+        )
+        return strict
+    
+    def normalize_both(self, text: str) -> Tuple[str, str, Dict]:
+        """
+        Normalize text with both loose and strict views.
+        
+        Args:
+            text: Input text to normalize
+            
+        Returns:
+            Tuple of (norm_loose, norm_strict, stats)
+        """
+        return normalize_views(
+            text,
+            trim_punctuation=self.trim_punctuation,
+            canonicalize_vs=self.canonicalize_vs,
+            casefold_strict=self.casefold
+        )
+    
+    def normalize_for_keywords(self, text: str) -> str:
+        """
+        Normalize text for keyword extraction (loose view).
+        Preserves readable quotes/dashes and case inside quoted phrases.
+        
+        Args:
+            text: Input text to normalize
+            
+        Returns:
+            Normalized text suitable for keyword extraction
+        """
+        loose, _, _ = normalize_views(
+            text,
+            trim_punctuation=False,  # keep edges for keyword quotes
+            canonicalize_vs=False,   # keyword text shouldn't be altered semantically
+            casefold_strict=False,
+        )
+        return loose
+    
+    def normalize_for_slots(self, text: str) -> str:
+        """
+        Normalize text for regex slot extraction (strict view).
+        Identical to current normalize() behavior.
+        
+        Args:
+            text: Input text to normalize
+            
+        Returns:
+            Normalized text suitable for regex slot extraction
+        """
+        _, strict, _ = normalize_views(
+            text,
+            trim_punctuation=self.trim_punctuation,
+            canonicalize_vs=self.canonicalize_vs,
+            casefold_strict=self.casefold,
+        )
+        return strict 
