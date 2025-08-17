@@ -7,7 +7,8 @@ Supports dual-view normalization: loose for keywords, strict for regex slots.
 import re
 import unicodedata
 import functools
-from typing import Optional, Tuple, Dict
+from typing import Optional, Tuple, Dict, List
+from urllib.parse import urlparse, urljoin
 
 try:
     import ftfy
@@ -30,10 +31,14 @@ _CONTROL_RE = re.compile(r'[\u0000-\u0008\u000B-\u000C\u000E-\u001F\u007F]')  # 
 # Regex patterns for normalization
 _VS_RE = re.compile(r'\b(versus|vs\.?)\b', flags=re.IGNORECASE)
 _WS_RE = re.compile(r'\s+')  # Standard whitespace collapse
-# Leading/trailing punctuation to trim, but keep internal punctuation (/, %, :, .)
-_TRIM_RE = re.compile(r'^[\s\.,;:!?(){}\[\]"\']+|[\s\.,;:!?(){}\[\]"\']+$')
+# String-based trimming - no regex needed
+_TRIM_CHARS = set('.,;:!?(){}[]"\' \t\n\r')
 
-# Link protection patterns for URLs and emails
+# Legacy regex patterns (kept for backward compatibility but no longer used)
+# These have been replaced by string-based parsing
+_HTTP_URL_RE = re.compile(r'https?://[^\s]+')
+_WWW_URL_RE = re.compile(r'www\.[^\s]+')
+_EMAIL_RE = re.compile(r'[^\s@]+@[^\s@]+\.[^\s@]+')
 _LINK_HEAD_RE = re.compile(r'^\s*((?:https?://[^\s\.,;:!?(){}[\]"\']+|www\.[^\s\.,;:!?(){}[\]"\']+|[^\s@\.,;:!?(){}[\]"\']+@[^\s@\.,;:!?(){}[\]"\']+\.[^\s@\.,;:!?(){}[\]"\']+))(?=[\s\.,;:!?(){}\[\]"\']|$)')
 
 # Emoji detection pattern
@@ -48,6 +53,257 @@ CHAR_MAP = {
 
 # Cache configuration
 DEFAULT_CACHE_SIZE = 1024
+
+
+def is_valid_url(text: str) -> bool:
+    """
+    Validate if a string is a valid URL using urllib.parse.
+    
+    Args:
+        text: String to validate as URL
+        
+    Returns:
+        True if the string is a valid URL, False otherwise
+    """
+    try:
+        result = urlparse(text)
+        # Must have scheme and netloc for a valid URL
+        return all([result.scheme, result.netloc])
+    except Exception:
+        return False
+
+
+def is_url_with_trailing_punctuation(text: str) -> bool:
+    """
+    Check if a URL has trailing punctuation that should be protected.
+    
+    Args:
+        text: String to check
+        
+    Returns:
+        True if the text is a URL with trailing punctuation that should be protected
+    """
+    # Common trailing punctuation that should be protected
+    trailing_punct = '.,;:!?(){}[]"\''
+    
+    # Check if the text ends with trailing punctuation
+    if not text or text[-1] not in trailing_punct:
+        return False
+    
+    # Try to find a valid URL by progressively removing trailing punctuation
+    for i in range(len(text) - 1, 0, -1):
+        if text[i] in trailing_punct:
+            candidate = text[:i]
+            if is_valid_url(candidate):
+                return True
+        else:
+            break
+    
+    return False
+
+
+def is_valid_email(text: str) -> bool:
+    """
+    Basic email validation.
+    
+    Args:
+        text: String to validate as email
+        
+    Returns:
+        True if the string appears to be a valid email, False otherwise
+    """
+    # Basic email pattern: local@domain.tld
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return bool(re.match(email_pattern, text))
+
+
+def tokenize_text(text: str) -> List[Tuple[str, int, int]]:
+    """
+    Tokenize text into potential link candidates.
+    
+    Args:
+        text: Input text to tokenize
+        
+    Returns:
+        List of (token, start_pos, end_pos) tuples
+    """
+    tokens = []
+    current_token = ""
+    start_pos = 0
+    
+    for i, char in enumerate(text):
+        if char.isspace():
+            if current_token:
+                tokens.append((current_token, start_pos, i))
+                current_token = ""
+        else:
+            if not current_token:
+                start_pos = i
+            current_token += char
+    
+    # Add final token
+    if current_token:
+        tokens.append((current_token, start_pos, len(text)))
+    
+    return tokens
+
+
+def validate_url_progressive(text: str) -> Tuple[str, int]:
+    """
+    Validate URL progressively, finding the longest valid prefix.
+    
+    Args:
+        text: Text to validate as URL
+        
+    Returns:
+        Tuple of (valid_url, end_position)
+    """
+    # Try progressively longer prefixes
+    for i in range(len(text), 0, -1):
+        candidate = text[:i]
+        if is_valid_url(candidate):
+            # Check if this is a URL with trailing punctuation that should be protected
+            if is_url_with_trailing_punctuation(text):
+                # For URLs with trailing punctuation, we want to protect the full text
+                return text, len(text)
+            return candidate, i
+        # Special handling for www. URLs - try with http:// prefix
+        elif candidate.startswith('www.') and is_valid_url(f"http://{candidate}"):
+            return candidate, i
+    
+    return "", 0
+
+
+def validate_email_progressive(text: str) -> Tuple[str, int]:
+    """
+    Validate email progressively, finding the longest valid prefix.
+    
+    Args:
+        text: Text to validate as email
+        
+    Returns:
+        Tuple of (valid_email, end_position)
+    """
+    # Try progressively longer prefixes
+    for i in range(len(text), 0, -1):
+        candidate = text[:i]
+        if is_valid_email(candidate):
+            return candidate, i
+    
+    return "", 0
+
+
+def trim_punctuation_string_based(text: str) -> str:
+    """
+    Trim leading and trailing punctuation using string operations instead of regex.
+    
+    Args:
+        text: Input text to trim
+        
+    Returns:
+        Text with leading and trailing punctuation removed
+    """
+    if not text:
+        return text
+    
+    # Find the first non-trim character
+    start = 0
+    while start < len(text) and text[start] in _TRIM_CHARS:
+        start += 1
+    
+    # Find the last non-trim character
+    end = len(text)
+    while end > start and text[end - 1] in _TRIM_CHARS:
+        end -= 1
+    
+    return text[start:end]
+
+
+def extract_and_validate_links(text: str) -> List[Tuple[str, int, int]]:
+    """
+    Extract and validate URLs and emails from text using string parsing and progressive validation.
+    
+    Args:
+        text: Input text to extract links from
+        
+    Returns:
+        List of tuples (link_text, start_pos, end_pos) for valid links
+    """
+    links = []
+    tokens = tokenize_text(text)
+    
+    for token, start_pos, end_pos in tokens:
+        # Check if token starts with URL indicators
+        if token.startswith(('http://', 'https://', 'www.')):
+            valid_url, valid_length = validate_url_progressive(token)
+            if valid_url:
+                links.append((valid_url, start_pos, start_pos + valid_length))
+        
+        # Check if token contains a URL (for cases like "!!!https://example.com")
+        elif any(indicator in token for indicator in ('http://', 'https://', 'www.')):
+            # Find the start of the URL within the token
+            for indicator in ('https://', 'http://', 'www.'):
+                if indicator in token:
+                    url_start = token.find(indicator)
+                    url_part = token[url_start:]
+                    valid_url, valid_length = validate_url_progressive(url_part)
+                    if valid_url:
+                        # Adjust start position to account for the URL position within the token
+                        actual_start = start_pos + url_start
+                        links.append((valid_url, actual_start, actual_start + valid_length))
+                    break
+        
+        # Check for email patterns
+        elif '@' in token and '.' in token:
+            # Use progressive validation for emails too
+            valid_email, valid_length = validate_email_progressive(token)
+            if valid_email:
+                links.append((valid_email, start_pos, start_pos + valid_length))
+    
+    return links
+
+
+def find_longest_link_at_start(text: str) -> Optional[Tuple[str, int, int]]:
+    """
+    Find the longest valid link at the start of the text using string parsing.
+    
+    Args:
+        text: Input text to check for leading link
+        
+    Returns:
+        Tuple of (link_text, start_pos, end_pos) or None if no valid link found
+    """
+    # Strip leading whitespace for matching
+    stripped_text = text.lstrip()
+    if not stripped_text:
+        return None
+    
+    # Find all potential links
+    links = extract_and_validate_links(stripped_text)
+    
+    # Filter to only links that start at the beginning (after whitespace)
+    start_links = [link for link in links if link[1] == 0]
+    
+    if not start_links:
+        # If no links start at the beginning, check if there's a link after leading punctuation
+        # This handles cases like "!!!https://example.com"
+        for link in links:
+            # Check if the link starts after some leading punctuation
+            if link[1] > 0:
+                # Verify that all characters before the link are punctuation/whitespace
+                prefix = stripped_text[:link[1]]
+                if all(c in _TRIM_CHARS for c in prefix):
+                    # Adjust start position to account for original whitespace
+                    original_start = len(text) - len(stripped_text) + link[1]
+                    return (link[0], original_start, original_start + (link[2] - link[1]))
+        return None
+    
+    # Return the longest link (most comprehensive match)
+    longest_link = max(start_links, key=lambda x: x[2] - x[1])
+    
+    # Adjust start position to account for original whitespace
+    original_start = len(text) - len(stripped_text)
+    return (longest_link[0], original_start, original_start + longest_link[2])
 
 
 
@@ -106,6 +362,7 @@ def _process_emojis(s: str, emoji_policy: str = "keep") -> str:
 def _protect_head_entity(s: str) -> Tuple[str, Optional[str], Optional[str]]:
     """
     Protect leading URL or email from trimming by temporarily replacing with a placeholder.
+    Uses string-based parsing and progressive validation.
     
     Args:
         s: Input string that may contain a leading URL or email
@@ -113,20 +370,23 @@ def _protect_head_entity(s: str) -> Tuple[str, Optional[str], Optional[str]]:
     Returns:
         Tuple of (modified_string, original_entity, trailing_punct) or (original_string, None, None)
     """
-    match = _LINK_HEAD_RE.match(s)
-    if not match:
+    # Use the new string-based link detection
+    link_info = find_longest_link_at_start(s)
+    if not link_info:
         return s, None, None
     
-    entity = match.group(1)
+    entity, start_pos, end_pos = link_info
+    
     # Check if there's trailing punctuation after the entity
-    remaining = s[len(entity):].lstrip()
+    remaining = s[end_pos:].lstrip()
     trailing_punct = None
     if remaining and remaining[0] in '.,;:!?(){}[]"\'':
         trailing_punct = remaining[0]
     
     # Use a unique placeholder that won't conflict with normal text
     placeholder = f"⟦{entity}⟧"
-    modified = s.replace(entity, placeholder, 1)
+    # Replace only the first occurrence at the specific position
+    modified = s[:start_pos] + placeholder + s[end_pos:]
     return modified, entity, trailing_punct
 
 
@@ -209,16 +469,14 @@ def _normalize_views_impl(text: str,
         if protect_links:
             s, head_entity, trailing_punct = _protect_head_entity(s)
         
-        # Apply trimming
-        s = _TRIM_RE.sub("", s)
+        # Apply trimming using string-based approach
+        s = trim_punctuation_string_based(s)
         
         # Restore protected entity
         if head_entity is not None:
             s = _restore_head_entity(s, head_entity, trailing_punct)
-            # If there was trailing punctuation, it should be removed in strict view
-            # The entity is now protected, so we can safely trim any remaining trailing punctuation
-            if trailing_punct:
-                s = s.rstrip(trailing_punct)
+            # Note: Trailing punctuation is preserved when link protection is enabled
+            # This allows URLs with trailing punctuation to be protected
     
     # Enhanced statistics
     stats = get_normalization_stats(original, s)
@@ -239,6 +497,7 @@ def _normalize_views_impl(text: str,
         "strict_length": len(s),
         "cache_hit": False,  # This will be updated by the cached wrapper
         "cache_size": DEFAULT_CACHE_SIZE,
+        "string_based_link_protection": True,  # Indicates use of new string-based link protection
     })
     
     return norm_loose, s, stats
@@ -578,3 +837,51 @@ class TextNormalizer:
         This can be useful for memory management or testing purposes.
         """
         clear_cache()
+    
+    def extract_links(self, text: str) -> List[Tuple[str, int, int]]:
+        """
+        Extract and validate all links from text using robust parsing.
+        
+        Args:
+            text: Input text to extract links from
+            
+        Returns:
+            List of tuples (link_text, start_pos, end_pos) for valid links
+        """
+        return extract_and_validate_links(text)
+    
+    def find_link_at_start(self, text: str) -> Optional[Tuple[str, int, int]]:
+        """
+        Find the longest valid link at the start of the text.
+        
+        Args:
+            text: Input text to check for leading link
+            
+        Returns:
+            Tuple of (link_text, start_pos, end_pos) or None if no valid link found
+        """
+        return find_longest_link_at_start(text)
+    
+    def is_valid_url(self, text: str) -> bool:
+        """
+        Validate if a string is a valid URL using urllib.parse.
+        
+        Args:
+            text: String to validate as URL
+            
+        Returns:
+            True if the string is a valid URL, False otherwise
+        """
+        return is_valid_url(text)
+    
+    def is_valid_email(self, text: str) -> bool:
+        """
+        Basic email validation.
+        
+        Args:
+            text: String to validate as email
+            
+        Returns:
+            True if the string appears to be a valid email, False otherwise
+        """
+        return is_valid_email(text)
