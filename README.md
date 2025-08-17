@@ -1,4 +1,4 @@
-# Google Trends Quantile Forecaster
+# Trend Forecasting Agent
 
 An intelligent forecasting system that combines natural language understanding with state-of-the-art time series forecasting to provide quantile predictions for keyword popularity trends.
 
@@ -94,6 +94,36 @@ app/
 ```bash
 docker-compose up --build
 ```
+
+## 🔌 HTTP Client Usage
+
+The system supports both in-process and HTTP clients for service communication:
+
+### In-Process Client (Default)
+```python
+from app.agent_graph.service_client import InProcessForecasterClient
+from app.services.forecaster_interface import ForecasterServiceInterface
+
+service = ForecasterServiceInterface()
+client = InProcessForecasterClient(service)
+result = client.health()
+```
+
+### HTTP Client
+```python
+from app.agent_graph.service_client import HTTPForecasterClient
+
+client = HTTPForecasterClient("http://localhost:5000")
+result = client.health()
+```
+
+### Configuration
+HTTP client behavior can be configured via environment variables:
+- `FORECASTER_API_URL`: Base URL for the API
+- `FORECASTER_API_KEY`: API key for authentication
+- `HTTP_TIMEOUT`: Request timeout in seconds
+- `HTTP_MAX_RETRIES`: Maximum number of retries
+- `HTTP_LOG_REQUESTS`: Enable request logging
 
 ## 🧠 LangGraph-Powered Intelligence
 
