@@ -17,6 +17,7 @@ from app.services.agent.slot_extractor import SlotExtractor, ExtractedSlots
 from app.services.agent.validators import AgentValidator, ValidationResult
 from app.utils.request_context import request_context_manager, get_current_request_id
 from app.utils.structured_logger import create_structured_logger
+from app.config.config import Config
 
 
 class AgentService:
@@ -34,8 +35,101 @@ class AgentService:
         self.slot_extractor = SlotExtractor()
         self.validator = AgentValidator()
         
+        # Initialize LangGraph if enabled
+        self.use_graph = Config.AGENT_USE_GRAPH
+        self.graph_agent = None
+        if self.use_graph:
+            try:
+                from app.agent_graph import InProcessForecasterClient, create_agent_graph
+                service_client = InProcessForecasterClient(forecaster_service)
+                self.graph_agent = create_agent_graph(service_client)
+                self.logger.info("LangGraph agent initialized successfully")
+            except ImportError as e:
+                self.logger.warning(f"Failed to import LangGraph components: {e}. Falling back to legacy mode.")
+                self.use_graph = False
+            except Exception as e:
+                self.logger.error(f"Failed to initialize LangGraph agent: {e}. Falling back to legacy mode.")
+                self.use_graph = False
+        
     def process_query(self, query: Union[str, AgentRequest]) -> AgentResponse:
         """Process a natural language query through the full pipeline.
+        
+        Args:
+            query: The natural language query (string or AgentRequest)
+            
+        Returns:
+            AgentResponse with results
+        """
+        if self.use_graph and self.graph_agent:
+            return self._process_query_graph(query)
+        else:
+            return self._process_query_legacy(query)
+    
+    def _process_query_graph(self, query: Union[str, AgentRequest]) -> AgentResponse:
+        """Process query using LangGraph agent.
+        
+        Args:
+            query: The natural language query (string or AgentRequest)
+            
+        Returns:
+            AgentResponse with results
+        """
+        try:
+            # Handle both string and AgentRequest inputs
+            if isinstance(query, AgentRequest):
+                raw_query = query.query
+                request = query
+            else:
+                raw_query = query
+                request = AgentRequest(query=raw_query)
+            
+            # Create initial state
+            from app.agent_graph.state import AgentState
+            initial_state = AgentState(
+                raw=raw_query,
+                request_id=get_current_request_id(),
+                user_id=getattr(request, 'user_id', None),
+                session_id=getattr(request, 'session_id', None)
+            )
+            
+            # Run the graph
+            final_state = self.graph_agent(initial_state)
+            
+            # Extract answer from state
+            if final_state.answer:
+                return create_agent_response(
+                    text=final_state.answer['text'],
+                    data=final_state.answer['data'],
+                    metadata=final_state.answer['metadata'],
+                    request_id=final_state.answer['metadata'].get('request_id')
+                )
+            else:
+                # Fallback if no answer was generated
+                return create_agent_response(
+                    text="I couldn't process your request properly.",
+                    data={},
+                    metadata={
+                        'intent': 'unknown',
+                        'confidence': 0.0,
+                        'raw_query': raw_query
+                    },
+                    request_id=get_current_request_id()
+                )
+                
+        except Exception as e:
+            self.logger.error(f"Error processing query with LangGraph '{query}': {str(e)}")
+            
+            # Return error response
+            error_result = {
+                'type': 'error',
+                'text': f"An error occurred while processing your query: {str(e)}",
+                'data': {}
+            }
+            error_intent = create_intent_recognition(AgentIntent.UNKNOWN, 0.0, raw_query)
+            return self._format_response(error_result, error_intent, request)
+    
+    def _process_query_legacy(self, query: Union[str, AgentRequest]) -> AgentResponse:
+        """Process query using legacy agent service.
         
         Args:
             query: The natural language query (string or AgentRequest)
@@ -291,7 +385,7 @@ class AgentService:
         self, 
         result: Dict[str, Any], 
         intent_result: IntentRecognition,
-        request: AgentRequest
+        request: Optional[AgentRequest]
     ) -> AgentResponse:
         """Format the response for the user.
         
@@ -309,7 +403,7 @@ class AgentService:
             metadata={
                 'intent': intent_result.intent.value,
                 'confidence': intent_result.confidence,
-                'raw_query': request.query
+                'raw_query': request.query if request else intent_result.raw_text or "unknown"
             },
             request_id=get_current_request_id()
         )

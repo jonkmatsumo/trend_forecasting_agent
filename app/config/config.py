@@ -52,6 +52,9 @@ class Config:
     # Development Server
     HOST = os.environ.get('HOST', '0.0.0.0')
     PORT = int(os.environ.get('PORT', '5000'))
+    
+    # Agent Configuration
+    AGENT_USE_GRAPH = os.environ.get('AGENT_USE_GRAPH', 'False').lower() == 'true'
 
 
 class DevelopmentConfig(Config):
