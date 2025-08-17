@@ -33,33 +33,33 @@ The system automatically:
 
 ```
 app/
-├── agent_graph/              # LangGraph orchestration
-│   ├── graph.py              # Main workflow graph
-│   ├── nodes.py              # Individual processing nodes
-│   ├── state.py              # State management
-│   └── service_client.py     # Service integration
+├── agent_graph/                  # LangGraph orchestration
+│   ├── graph.py                  # Main workflow graph
+│   ├── nodes.py                  # Individual processing nodes
+│   ├── state.py                  # State management
+│   └── service_client.py         # Service integration
 ├── api/
-│   ├── agent_routes.py       # Natural language agent interface
-│   └── routes.py             # Traditional REST API endpoints
+│   ├── agent_routes.py           # LangGraph agent interface
+│   └── routes.py                 # Traditional REST API endpoints
 ├── services/
-│   ├── agent/                # Natural language processing
-│   │   ├── agent_service.py  # LangGraph-based agent service
+│   ├── agent/                    # LangGraph-based agent service
+│   │   ├── agent_service.py
 │   │   ├── intent_recognizer.py
 │   │   ├── slot_extractor.py
 │   │   └── validators.py
-│   ├── darts/                # Time series forecasting
+│   ├── darts/                    # Time series forecasting
 │   │   ├── training_service.py
 │   │   ├── evaluation_service.py
 │   │   └── prediction_service.py
-│   └── pytrends/             # Google Trends data
+│   └── pytrends/                 # Google Trends data
 │       └── trends_service.py
 ├── models/
-│   ├── agent_models.py       # Agent data models
-│   ├── darts/                # Forecasting models
-│   └── pytrends/             # Trends data models
+│   ├── agent_models.py           # Agent data models
+│   ├── darts/                    # Forecasting models
+│   └── pytrends/                 # Trends data models
 └── config/
-    ├── agent_config.py       # Agent configuration
-    └── config.py             # General configuration
+    ├── agent_config.py           # Agent configuration
+    └── config.py                 # General configuration
 ```
 
 ## 🚀 Quick Start

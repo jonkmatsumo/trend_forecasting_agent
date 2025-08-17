@@ -4,12 +4,14 @@ Combines semantic similarity, regex patterns, and optional LLM classification.
 """
 
 import re
+import logging
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
 from app.models.agent_models import AgentIntent
 from app.utils.text_normalizer import TextNormalizer
+from app.config.config import Config
 
 
 class ScorerType(Enum):
@@ -25,6 +27,7 @@ class ScorerResult:
     scorer_type: ScorerType
     scores: Dict[AgentIntent, float]
     confidence: float
+    valid: bool = True  # Indicates if this scorer is valid and should contribute to ensemble
 
 
 @dataclass
@@ -255,7 +258,7 @@ class IntentRecognizer:
         """Initialize the hybrid intent recognizer."""
         self.semantic_scorer = SimpleSemanticScorer()
         self.text_normalizer = TextNormalizer()
-        self.logger = "dummy_logger"  # Placeholder for tests
+        self.logger = logging.getLogger(__name__)
         self.examples = {intent: examples[:] for intent, examples in self.semantic_scorer.intent_examples.items()}
         self.patterns = self._build_regex_patterns()
         self.weights = {
@@ -268,9 +271,9 @@ class IntentRecognizer:
             'low': 0.05
         }
         self.ensemble_weights = {
-            ScorerType.SEMANTIC: 0.6,
-            ScorerType.REGEX: 0.3,
-            ScorerType.LLM: 0.1
+            ScorerType.SEMANTIC: Config.INTENT_LLM_ENSEMBLE_WEIGHTS["semantic"],
+            ScorerType.REGEX: Config.INTENT_LLM_ENSEMBLE_WEIGHTS["regex"],
+            ScorerType.LLM: Config.INTENT_LLM_ENSEMBLE_WEIGHTS["llm"]
         }
     
     def recognize_intent(self, query: str, raw_text: Optional[str] = None) -> 'IntentRecognition':
@@ -354,7 +357,8 @@ class IntentRecognizer:
             return ScorerResult(
                 scorer_type=ScorerType.SEMANTIC,
                 scores=scores,
-                confidence=0.0
+                confidence=0.0,
+                valid=False  # Mark as invalid for weight redistribution
             )
     
     def _regex_scorer(self, query: str) -> ScorerResult:
@@ -392,7 +396,7 @@ class IntentRecognizer:
         )
     
     def _llm_scorer(self, query: str) -> ScorerResult:
-        """Compute LLM-based classification scores (placeholder).
+        """Compute LLM-based classification scores.
         
         Args:
             query: The user query
@@ -400,13 +404,128 @@ class IntentRecognizer:
         Returns:
             ScorerResult with LLM scores
         """
-        # Placeholder for future LLM integration
-        scores = {intent: 0.0 for intent in AgentIntent if intent != AgentIntent.UNKNOWN}
+        # Early return if LLM is disabled
+        if not Config.INTENT_LLM_ENABLED:
+            scores = {intent: 0.0 for intent in AgentIntent if intent != AgentIntent.UNKNOWN}
+            return ScorerResult(
+                scorer_type=ScorerType.LLM,
+                scores=scores,
+                confidence=0.0,
+                valid=False  # Not valid when disabled
+            )
         
+        try:
+            # Import here to avoid circular imports
+            from app.services.llm import LLMClient, OpenAIClient, LocalClient, IntentCache
+            from app.services.llm.intent_cache import hash_query
+            
+            # Initialize LLM client if not already done
+            if not hasattr(self, '_llm_client'):
+                self._llm_client = self._create_llm_client()
+                self._llm_cache = IntentCache(
+                    max_size=Config.INTENT_LLM_CACHE_SIZE,
+                    ttl_hours=Config.INTENT_LLM_CACHE_TTL_HOURS
+                )
+            
+            # Check cache first
+            query_hash = hash_query(query)
+            cached_result = self._llm_cache.get(query_hash)
+            if cached_result:
+                return self._format_cached_result(cached_result)
+            
+            # Make LLM classification
+            result = self._llm_client.classify_intent(query)
+            
+            # Convert string intent to AgentIntent
+            intent_str = result.intent
+            if intent_str == "forecast":
+                intent = AgentIntent.FORECAST
+            elif intent_str == "compare":
+                intent = AgentIntent.COMPARE
+            elif intent_str == "summary":
+                intent = AgentIntent.SUMMARY
+            elif intent_str == "train":
+                intent = AgentIntent.TRAIN
+            elif intent_str == "evaluate":
+                intent = AgentIntent.EVALUATE
+            elif intent_str == "health":
+                intent = AgentIntent.HEALTH
+            elif intent_str == "list_models":
+                intent = AgentIntent.LIST_MODELS
+            else:
+                intent = AgentIntent.UNKNOWN
+            
+            # Create scores dict
+            scores = {intent: 0.0 for intent in AgentIntent if intent != AgentIntent.UNKNOWN}
+            scores[intent] = result.confidence
+            
+            # Cache the result
+            self._llm_cache.set(query_hash, {
+                "intent": intent,
+                "confidence": result.confidence,
+                "scores": scores
+            }, result.model_version)
+            
+            return ScorerResult(
+                scorer_type=ScorerType.LLM,
+                scores=scores,
+                confidence=result.confidence
+            )
+            
+        except Exception as e:
+            self.logger.warning(f"LLM classification failed: {e}")
+            # Return zero scores on failure - the ensemble method will handle weight redistribution
+            scores = {intent: 0.0 for intent in AgentIntent if intent != AgentIntent.UNKNOWN}
+            return ScorerResult(
+                scorer_type=ScorerType.LLM,
+                scores=scores,
+                confidence=0.0,
+                valid=False  # Mark this scorer as invalid
+            )
+    
+    def _create_llm_client(self):
+        """Create LLM client based on configuration.
+        
+        Returns:
+            Configured LLM client
+        """
+        # Import here to avoid circular imports
+        from app.services.llm import OpenAIClient, LocalClient
+        
+        if Config.INTENT_LLM_PROVIDER == "openai":
+            if not Config.INTENT_LLM_API_KEY:
+                raise ValueError("OpenAI API key not configured")
+            return OpenAIClient(
+                api_key=Config.INTENT_LLM_API_KEY,
+                model=Config.INTENT_LLM_MODEL,
+                timeout_ms=Config.INTENT_LLM_TIMEOUT_MS,
+                max_tokens=Config.INTENT_LLM_MAX_TOKENS,
+                temperature=Config.INTENT_LLM_TEMPERATURE
+            )
+        elif Config.INTENT_LLM_PROVIDER == "local":
+            return LocalClient(
+                base_url=Config.INTENT_LLM_BASE_URL,
+                model=Config.INTENT_LLM_MODEL,
+                timeout_ms=Config.INTENT_LLM_TIMEOUT_MS,
+                max_tokens=Config.INTENT_LLM_MAX_TOKENS,
+                temperature=Config.INTENT_LLM_TEMPERATURE
+            )
+        else:
+            raise ValueError(f"Unsupported LLM provider: {Config.INTENT_LLM_PROVIDER}")
+    
+    def _format_cached_result(self, cached_result: Dict) -> ScorerResult:
+        """Format cached result as ScorerResult.
+        
+        Args:
+            cached_result: Cached classification result
+            
+        Returns:
+            ScorerResult from cached data
+        """
         return ScorerResult(
             scorer_type=ScorerType.LLM,
-            scores=scores,
-            confidence=0.0
+            scores=cached_result["scores"],
+            confidence=cached_result["confidence"]
         )
     
     def _ensemble_scores(self, scorer_results: List[ScorerResult]) -> Tuple[AgentIntent, float]:
@@ -420,8 +539,11 @@ class IntentRecognizer:
         """
         ensemble_scores = {intent: 0.0 for intent in AgentIntent if intent != AgentIntent.UNKNOWN}
         
+        # Calculate dynamic weights based on failed scorers
+        dynamic_weights = self._calculate_dynamic_weights(scorer_results)
+        
         for result in scorer_results:
-            weight = self.ensemble_weights.get(result.scorer_type, 0.0)
+            weight = dynamic_weights.get(result.scorer_type, 0.0)
             for intent, score in result.scores.items():
                 if intent != AgentIntent.UNKNOWN:
                     ensemble_scores[intent] += weight * score
@@ -432,6 +554,59 @@ class IntentRecognizer:
             return best_intent[0], best_intent[1]
         else:
             return AgentIntent.UNKNOWN, 0.0
+    
+    def _calculate_dynamic_weights(self, scorer_results: List[ScorerResult]) -> Dict[ScorerType, float]:
+        """Calculate dynamic weights, redistributing invalid scorer weights proportionally.
+        
+        Args:
+            scorer_results: List of ScorerResult objects
+            
+        Returns:
+            Dictionary mapping ScorerType to adjusted weight
+        """
+        # Start with original weights
+        dynamic_weights = self.ensemble_weights.copy()
+        
+        # Identify invalid scorers
+        invalid_scorers = [result.scorer_type for result in scorer_results if not result.valid]
+        
+        if not invalid_scorers:
+            # No invalid scorers, use original weights
+            return dynamic_weights
+        
+        # Calculate total weight of invalid scorers
+        invalid_weight = sum(dynamic_weights.get(scorer_type, 0.0) for scorer_type in invalid_scorers)
+        
+        if invalid_weight == 0.0:
+            # No weight to redistribute
+            return dynamic_weights
+        
+        # Calculate total weight of valid scorers
+        valid_scorers = [result.scorer_type for result in scorer_results if result.valid]
+        valid_weight = sum(dynamic_weights.get(scorer_type, 0.0) for scorer_type in valid_scorers)
+        
+        if valid_weight == 0.0:
+            # No valid scorers, return original weights
+            return dynamic_weights
+        
+        # Redistribute invalid weight proportionally to valid scorers
+        redistribution_factor = invalid_weight / valid_weight
+        
+        for scorer_type in valid_scorers:
+            original_weight = dynamic_weights.get(scorer_type, 0.0)
+            dynamic_weights[scorer_type] = original_weight * (1.0 + redistribution_factor)
+        
+        # Zero out weights for invalid scorers
+        for scorer_type in invalid_scorers:
+            dynamic_weights[scorer_type] = 0.0
+        
+        # Log the weight redistribution for debugging
+        if invalid_scorers:
+            self.logger.info(f"Weight redistribution due to invalid scorers: {invalid_scorers}. "
+                           f"Original weights: {self.ensemble_weights}, "
+                           f"Adjusted weights: {dynamic_weights}")
+        
+        return dynamic_weights
     
     def _normalize_text(self, text: str) -> str:
         """Normalize text for processing.

@@ -55,6 +55,37 @@ class Config:
     
     # Agent Configuration
     AGENT_USE_GRAPH = os.environ.get('AGENT_USE_GRAPH', 'False').lower() == 'true'
+    
+    # LLM Intent Classification Configuration
+    INTENT_LLM_ENABLED = os.environ.get('INTENT_LLM_ENABLED', 'False').lower() == 'true'
+    INTENT_LLM_PROVIDER = os.environ.get('INTENT_LLM_PROVIDER', 'openai')
+    INTENT_LLM_MODEL = os.environ.get('INTENT_LLM_MODEL', 'gpt-4o-mini')
+    INTENT_LLM_TIMEOUT_MS = int(os.environ.get('INTENT_LLM_TIMEOUT_MS', '2000'))
+    INTENT_LLM_MAX_TOKENS = int(os.environ.get('INTENT_LLM_MAX_TOKENS', '128'))
+    INTENT_LLM_TEMPERATURE = float(os.environ.get('INTENT_LLM_TEMPERATURE', '0.0'))
+    INTENT_LLM_API_KEY = os.environ.get('INTENT_LLM_API_KEY')
+    INTENT_LLM_BASE_URL = os.environ.get('INTENT_LLM_BASE_URL', 'http://localhost:8000')
+    
+    # LLM Cache Configuration
+    INTENT_LLM_CACHE_SIZE = int(os.environ.get('INTENT_LLM_CACHE_SIZE', '1000'))
+    INTENT_LLM_CACHE_TTL_HOURS = int(os.environ.get('INTENT_LLM_CACHE_TTL_HOURS', '24'))
+    
+    # LLM Ensemble Configuration
+    INTENT_LLM_ENSEMBLE_WEIGHTS = {
+        "semantic": float(os.environ.get('INTENT_LLM_WEIGHT_SEMANTIC', '0.60')),
+        "regex": float(os.environ.get('INTENT_LLM_WEIGHT_REGEX', '0.25')),
+        "llm": float(os.environ.get('INTENT_LLM_WEIGHT_LLM', '0.15'))
+    }
+    
+    INTENT_LLM_MINIMUMS = {
+        "train": float(os.environ.get('INTENT_LLM_MIN_TRAIN', '0.55')),
+        "evaluate": float(os.environ.get('INTENT_LLM_MIN_EVALUATE', '0.55')),
+        "forecast": float(os.environ.get('INTENT_LLM_MIN_FORECAST', '0.45')),
+        "compare": float(os.environ.get('INTENT_LLM_MIN_COMPARE', '0.45')),
+        "summary": float(os.environ.get('INTENT_LLM_MIN_SUMMARY', '0.45')),
+        "health": float(os.environ.get('INTENT_LLM_MIN_HEALTH', '0.30')),
+        "list_models": float(os.environ.get('INTENT_LLM_MIN_LIST_MODELS', '0.30'))
+    }
 
 
 class DevelopmentConfig(Config):
