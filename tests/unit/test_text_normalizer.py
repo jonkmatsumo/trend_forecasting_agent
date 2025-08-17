@@ -5,7 +5,7 @@ Tests for enhanced text normalization utilities with dual-view approach.
 import pytest
 import unicodedata
 from app.utils.text_normalizer import (
-    normalize_views, normalize_with_ftfy, get_normalization_stats,
+    normalize_views, normalize_with_ftfy, normalize_strict, get_normalization_stats,
     TextNormalizer, CHAR_MAP
 )
 
@@ -1181,4 +1181,96 @@ class TestCaching:
         # Both calls should complete successfully
         # Note: We don't assert that cache hit is faster due to system load variations
         assert first_call_time >= 0
-        assert second_call_time >= 0 
+        assert second_call_time >= 0
+
+
+class TestNormalizeStrictConvenienceFunction:
+    """Test the normalize_strict convenience function."""
+    
+    def test_convenience_function_returns_strict_view(self):
+        """Test that convenience function returns strict view."""
+        text = "  Hello World!!!  "
+        result = normalize_strict(text)
+        
+        # Should return strict view (casefolded, trimmed)
+        assert result == "hello world"
+        
+        # Test with versus canonicalization
+        text = "Python versus JavaScript"
+        result = normalize_strict(text)
+        assert result == "python vs javascript"
+        
+        # Test with smart punctuation
+        text = "iPhone—17 with \u201Csmart\u201D features"
+        result = normalize_strict(text)
+        assert result == 'iphone-17 with "smart" features'
+    
+    def test_convenience_function_equivalent_to_normalize_views(self):
+        """Test that convenience function is equivalent to normalize_views()[1]."""
+        test_cases = [
+            "  Hello World!!!  ",
+            "Python versus JavaScript",
+            "iPhone—17 with \u201Csmart\u201D features",
+            "🔥 stock trends",
+            "https://example.com hello world",
+            "p10 / p50 / p90",
+            "Hello\u200BWorld\u0000Test\uFEFF",
+            "Hello\u00A0\u2000World\u2001Test",
+            "!!!Hello World!!!",
+            "café",
+            "９０％",
+            "１２３",
+            "５０．５"
+        ]
+        
+        for text in test_cases:
+            # Get result from convenience function
+            convenience_result = normalize_strict(text)
+            
+            # Get result from normalize_views (strict view)
+            _, strict_view, _ = normalize_views(text)
+            
+            # They should be equivalent
+            assert convenience_result == strict_view, f"Failed for text: {repr(text)}"
+    
+    def test_convenience_function_handles_edge_cases(self):
+        """Test that convenience function handles edge cases."""
+        # Test empty string
+        result = normalize_strict("")
+        assert result == ""
+        
+        # Test whitespace only
+        result = normalize_strict("   \t\n   ")
+        assert result == ""
+        
+        # Test only punctuation
+        result = normalize_strict("!!!")
+        assert result == ""
+        
+        # Test None (should return None gracefully)
+        result = normalize_strict(None)
+        assert result is None
+        
+        # Test non-string input (should raise TypeError)
+        with pytest.raises(TypeError):
+            normalize_strict(123)
+        
+        # Test with zero-width characters
+        result = normalize_strict("Hello\u200BWorld\u0000Test\uFEFF")
+        assert result == "helloworldtest"
+        
+        # Test with control characters
+        result = normalize_strict("Hello\u0000World\u0001Test")
+        assert result == "helloworldtest"
+        
+        # Test with mixed whitespace
+        result = normalize_strict("Hello\t\n\rWorld")
+        assert result == "hello world"
+        
+        # Test with full-width digits
+        result = normalize_strict("９０％")
+        assert result == "90%"
+        
+        # Test with combining characters
+        result = normalize_strict("café")
+        assert result == "café" 

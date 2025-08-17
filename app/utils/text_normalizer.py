@@ -625,11 +625,11 @@ def normalize_views(text: str,
 
 
 def normalize_with_ftfy(text: str, 
-                       casefold: bool = True,
-                       canonicalize_vs: bool = True,
-                       trim_punctuation: bool = True,
-                       protect_links: bool = False,
-                       emoji_policy: str = "keep") -> str:
+                        casefold: bool = True,
+                        canonicalize_vs: bool = True,
+                        trim_punctuation: bool = True,
+                        protect_links: bool = False,
+                        emoji_policy: str = "keep") -> str:
     """
     Normalize text for robust regex/rule matching while preserving meaning.
     
@@ -656,6 +656,34 @@ def normalize_with_ftfy(text: str,
         protect_links=protect_links,
         emoji_policy=emoji_policy
     )
+    return strict
+
+
+def normalize_strict(text: str) -> str:
+    """
+    Convenience function to normalize text using strict view (casefolded, trimmed, canonicalized).
+    
+    This is a simplified interface that returns only the normalized text without statistics.
+    For advanced usage with statistics and dual-view support, use normalize_views() instead.
+    
+    Args:
+        text: Input text to normalize
+        
+    Returns:
+        Normalized text using strict view (equivalent to normalize_views()[1])
+        
+    Examples:
+        >>> normalize_strict("  Hello World!!!  ")
+        'hello world'
+        
+        >>> normalize_strict("Python versus JavaScript")
+        'python vs javascript'
+        
+        >>> normalize_strict("iPhone—17 with \u201Csmart\u201D features")
+        'iphone-17 with "smart" features'
+    """
+    # Use the new dual-view function and return strict view
+    _, strict, _ = normalize_views(text)
     return strict
 
 
