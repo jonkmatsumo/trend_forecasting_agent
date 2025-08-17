@@ -156,6 +156,42 @@ def plan(state: AgentState) -> AgentState:
     return state
 
 
+import time
+import logging
+import threading
+import queue
+from typing import Dict, Any, List, Optional
+from functools import wraps
+
+logger = logging.getLogger(__name__)
+
+
+def retry_on_failure(max_retries: int = 3, delay: float = 1.0, backoff: float = 2.0):
+    """Decorator to retry operations on failure with exponential backoff."""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            current_delay = delay
+            
+            for attempt in range(max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_exception = e
+                    if attempt < max_retries:
+                        logger.warning(f"Attempt {attempt + 1} failed for {func.__name__}: {str(e)}. "
+                                     f"Retrying in {current_delay} seconds...")
+                        time.sleep(current_delay)
+                        current_delay *= backoff
+                    else:
+                        logger.error(f"All {max_retries + 1} attempts failed for {func.__name__}: {str(e)}")
+            
+            raise last_exception
+        return wrapper
+    return decorator
+
+
 def step(state: AgentState, service_client: ForecasterClient) -> AgentState:
     """Execute the next step in the plan.
     
@@ -175,7 +211,7 @@ def step(state: AgentState, service_client: ForecasterClient) -> AgentState:
     
     try:
         if action == 'health':
-            result = service_client.health()
+            result = _execute_with_retry(service_client.health)
             state.tool_outputs['health'] = {
                 'type': 'health',
                 'data': result,
@@ -183,7 +219,17 @@ def step(state: AgentState, service_client: ForecasterClient) -> AgentState:
             }
         
         elif action == 'list_models':
-            result = service_client.list_models()
+            # Get filters from slots if available
+            keyword_filter = getattr(state.slots, 'keywords', [None])[0] if getattr(state.slots, 'keywords', []) else None
+            model_type_filter = getattr(state.slots, 'model_type', None)
+            
+            result = _execute_with_retry(
+                service_client.list_models,
+                keyword=keyword_filter,
+                model_type=model_type_filter,
+                limit=50,
+                offset=0
+            )
             models = result.get('models', [])
             state.tool_outputs['list_models'] = {
                 'type': 'list_models',
@@ -194,29 +240,55 @@ def step(state: AgentState, service_client: ForecasterClient) -> AgentState:
         elif action == 'forecast':
             keyword = current_step.get('keyword')
             horizon = getattr(state.slots, 'horizon', 30)
-            quantiles = getattr(state.slots, 'quantiles', [0.1, 0.5, 0.9])
             
-            # For now, return a placeholder since we need a model_id for prediction
-            state.tool_outputs['forecast'] = {
-                'type': 'forecast',
-                'data': {
-                    'keyword': keyword,
-                    'horizon': horizon,
-                    'quantiles': quantiles
-                },
-                'text': f"I'll forecast trends for '{keyword}' over the next {horizon} days with quantiles {quantiles}."
-            }
+            # First, try to find a model for this keyword
+            models_result = _execute_with_retry(
+                service_client.list_models,
+                keyword=keyword,
+                limit=1,
+                offset=0
+            )
+            
+            models = models_result.get('models', [])
+            if not models:
+                # No model found, create an error response
+                state.tool_outputs['forecast'] = {
+                    'type': 'error',
+                    'data': {
+                        'keyword': keyword,
+                        'error': 'No trained model found for this keyword'
+                    },
+                    'text': f"No trained model found for '{keyword}'. Please train a model first."
+                }
+            else:
+                # Use the first available model
+                model_id = models[0]['model_id']
+                result = _execute_with_retry(
+                    service_client.predict,
+                    model_id=model_id,
+                    forecast_horizon=horizon
+                )
+                state.tool_outputs['forecast'] = {
+                    'type': 'forecast',
+                    'data': result,
+                    'text': f"Forecast generated for '{keyword}' using model {model_id} over {horizon} periods."
+                }
         
         elif action == 'trends_summary':
             keywords = current_step.get('keywords', [])
             timeframe = getattr(state.slots, 'timeframe', 'today 12-m')
             geo = getattr(state.slots, 'geo', '')
             
-            result = service_client.trends_summary(keywords, timeframe, geo)
+            result = _execute_with_retry(
+                service_client.trends_summary,
+                keywords=keywords,
+                timeframe=timeframe,
+                geo=geo
+            )
             state.tool_outputs['trends_summary'] = {
                 'type': 'trends_summary',
                 'data': result,
-                'text': f"Summary for keywords: {', '.join(keywords)}"
+                'text': f"Summary generated for keywords: {', '.join(keywords)}"
             }
         
         elif action == 'compare':
@@ -224,42 +296,122 @@ def step(state: AgentState, service_client: ForecasterClient) -> AgentState:
             timeframe = getattr(state.slots, 'timeframe', 'today 12-m')
             geo = getattr(state.slots, 'geo', '')
             
-            result = service_client.compare(keywords, timeframe, geo)
+            result = _execute_with_retry(
+                service_client.compare,
+                keywords=keywords,
+                timeframe=timeframe,
+                geo=geo
+            )
             state.tool_outputs['compare'] = {
                 'type': 'compare',
                 'data': result,
-                'text': f"Comparison for keywords: {', '.join(keywords)}"
+                'text': f"Comparison generated for keywords: {', '.join(keywords)}"
             }
         
         elif action == 'train':
             keyword = current_step.get('keyword')
             horizon = getattr(state.slots, 'horizon', 30)
+            model_type = getattr(state.slots, 'model_type', 'prophet')  # Default to prophet
             
-            # For now, return a placeholder since we need time series data
-            state.tool_outputs['train'] = {
-                'type': 'train',
-                'data': {
-                    'keyword': keyword,
-                    'horizon': horizon
-                },
-                'text': f"I'll train a forecasting model for '{keyword}' with {horizon}-day horizon."
-            }
+            # For training, we need time series data. Since we don't have it in the slots,
+            # we'll need to get it from the trends service first
+            try:
+                # Get trends data for the keyword
+                trends_result = _execute_with_retry(
+                    service_client.trends_summary,
+                    keywords=[keyword],
+                    timeframe='today 12-m',
+                    geo=''
+                )
+                
+                # Extract time series data from trends result
+                # This is a simplified approach - in practice, you'd need to parse the trends data
+                # and convert it to the format expected by the train method
+                time_series_data = trends_result.get('data', {}).get('interest_over_time', [])
+                dates = trends_result.get('data', {}).get('dates', [])
+                
+                if not time_series_data or len(time_series_data) < 52:
+                    state.tool_outputs['train'] = {
+                        'type': 'error',
+                        'data': {
+                            'keyword': keyword,
+                            'error': 'Insufficient data for training'
+                        },
+                        'text': f"Insufficient data for training model for '{keyword}'. Need at least 52 data points."
+                    }
+                else:
+                    # Train the model
+                    result = _execute_with_retry(
+                        service_client.train,
+                        keyword=keyword,
+                        time_series_data=time_series_data,
+                        dates=dates,
+                        model_type=model_type,
+                        forecast_horizon=horizon
+                    )
+                    state.tool_outputs['train'] = {
+                        'type': 'train',
+                        'data': result,
+                        'text': f"Model training completed for '{keyword}' with {model_type} model."
+                    }
+                    
+            except Exception as e:
+                state.tool_outputs['train'] = {
+                    'type': 'error',
+                    'data': {
+                        'keyword': keyword,
+                        'error': str(e)
+                    },
+                    'text': f"Failed to train model for '{keyword}': {str(e)}"
+                }
         
         elif action == 'evaluate':
             model_id = current_step.get('model_id')
             
             if model_id:
-                result = service_client.evaluate(model_id)
+                result = _execute_with_retry(
+                    service_client.evaluate,
+                    model_id=model_id
+                )
                 state.tool_outputs['evaluate'] = {
                     'type': 'evaluate',
                     'data': result,
-                    'text': f"Evaluation results for model {model_id}"
+                    'text': f"Evaluation completed for model {model_id}"
                 }
             else:
+                # Evaluate all models
+                models_result = _execute_with_retry(
+                    service_client.list_models,
+                    limit=50,
+                    offset=0
+                )
+                
+                models = models_result.get('models', [])
+                evaluation_results = []
+                
+                for model in models[:5]:  # Limit to first 5 models to avoid timeout
+                    try:
+                        eval_result = _execute_with_retry(
+                            service_client.evaluate,
+                            model_id=model['model_id']
+                        )
+                        evaluation_results.append({
+                            'model_id': model['model_id'],
+                            'evaluation': eval_result
+                        })
+                    except Exception as e:
+                        evaluation_results.append({
+                            'model_id': model['model_id'],
+                            'error': str(e)
+                        })
+                
                 state.tool_outputs['evaluate'] = {
                     'type': 'evaluate',
-                    'data': {},
-                    'text': "I'll evaluate model performance for all models."
+                    'data': {
+                        'evaluations': evaluation_results,
+                        'total_models': len(models)
+                    },
+                    'text': f"Evaluated {len(evaluation_results)} models out of {len(models)} total models."
                 }
         
         elif action == 'error':
@@ -277,6 +429,7 @@ def step(state: AgentState, service_client: ForecasterClient) -> AgentState:
             }
     
     except Exception as e:
+        logger.error(f"Error executing action '{action}': {str(e)}")
         state.tool_outputs['error'] = {
             'type': 'error',
             'text': f"Error executing {action}: {str(e)}",
@@ -287,6 +440,36 @@ def step(state: AgentState, service_client: ForecasterClient) -> AgentState:
     state.plan.pop(0)
     
     return state
+
+
+@retry_on_failure(max_retries=3, delay=1.0, backoff=2.0)
+def _execute_with_retry(func, *args, **kwargs):
+    """Execute a function with retry logic and timeout handling."""
+    import threading
+    import queue
+    
+    def execute_with_timeout():
+        try:
+            result = func(*args, **kwargs)
+            result_queue.put(('success', result))
+        except Exception as e:
+            result_queue.put(('error', e))
+    
+    # Use threading for timeout (cross-platform)
+    result_queue = queue.Queue()
+    thread = threading.Thread(target=execute_with_timeout)
+    thread.daemon = True
+    thread.start()
+    
+    try:
+        # Wait for result with timeout (30 seconds)
+        result_type, result = result_queue.get(timeout=30)
+        if result_type == 'success':
+            return result
+        else:
+            raise result
+    except queue.Empty:
+        raise TimeoutError(f"Operation {func.__name__} timed out after 30 seconds")
 
 
 def format_answer(state: AgentState) -> AgentState:

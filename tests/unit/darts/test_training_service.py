@@ -68,14 +68,14 @@ class TestTrainingService:
         assert service.models_dir == Path(temp_models_dir)
         assert service.models_dir.exists()
         assert service.experiment_name == "google_trends_forecaster"
-        assert len(service.model_mapping) == 14  # All model types
+        assert len(service.model_mapping) == 13  # All model types (excluding prophet)
     
     def test_model_mapping_contains_all_types(self, model_service):
         """Test that model mapping contains all supported model types."""
         expected_types = [
             "lstm", "gru", "tcn", "transformer",
             "n_beats", "tft", "arima", "exponential_smoothing",
-            "prophet", "random_forest", "auto_arima",
+            "random_forest", "auto_arima",
             "auto_ets", "auto_theta", "auto_ces"
         ]
         

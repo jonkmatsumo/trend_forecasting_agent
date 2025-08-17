@@ -235,9 +235,8 @@ class TestGraph:
 class TestAgentServiceIntegration:
     """Test the integration with the main agent service."""
     
-    @patch('app.config.config.Config.AGENT_USE_GRAPH', True)
     def test_agent_service_with_langgraph(self):
-        """Test that the agent service can use LangGraph when enabled."""
+        """Test that the agent service uses LangGraph."""
         from app.services.agent.agent_service import AgentService
         
         mock_service = Mock(spec=ForecasterServiceInterface)
@@ -245,17 +244,15 @@ class TestAgentServiceIntegration:
         
         agent_service = AgentService(mock_service)
         
-        # Test that LangGraph is used when enabled
-        if agent_service.use_graph and agent_service.graph_agent:
-            response = agent_service.process_query("What's the health status?")
-            
-            assert response.text is not None
-            assert "healthy" in response.text.lower()
-            assert response.metadata["intent"] == "health"
+        # Test that LangGraph is used
+        response = agent_service.process_query("What's the health status?")
+        
+        assert response.text is not None
+        assert "healthy" in response.text.lower()
+        assert response.metadata["intent"] == "health"
     
-    @patch('app.config.config.Config.AGENT_USE_GRAPH', False)
-    def test_agent_service_with_legacy(self):
-        """Test that the agent service falls back to legacy mode when LangGraph is disabled."""
+    def test_agent_service_always_uses_langgraph(self):
+        """Test that the agent service always uses LangGraph (no legacy mode)."""
         from app.services.agent.agent_service import AgentService
         
         mock_service = Mock(spec=ForecasterServiceInterface)
@@ -263,7 +260,7 @@ class TestAgentServiceIntegration:
         
         agent_service = AgentService(mock_service)
         
-        # Test that legacy mode is used when LangGraph is disabled
+        # Test that LangGraph is always used (no feature flag)
         response = agent_service.process_query("What's the health status?")
         
         assert response.text is not None

@@ -12,11 +12,15 @@ scikit-learn==1.7.1
 # Intent Recognition
 scipy==1.15.3
 
+# Darts Dependencies (auto-installed)
+# fugue==0.9.1  # Required by darts for statsforecast
+# narwhals==2.1.2  # Required by darts
+
 # Time Series Forecasting with Darts
-darts==0.25.0
-torch==2.0.1
-# prophet==1.1.4  # Note: Prophet has Windows installation issues, install separately if needed
-statsmodels==0.14.0
+darts==0.36.0
+torch==2.8.0
+# prophet==1.1.7  # Note: Prophet has Windows installation issues, install separately if needed
+statsmodels==0.14.5
 
 # External APIs
 pytrends==4.9.0

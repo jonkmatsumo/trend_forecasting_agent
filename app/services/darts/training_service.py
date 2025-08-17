@@ -17,8 +17,8 @@ import pandas as pd
 from darts import TimeSeries
 from darts.models import (
     RNNModel, TCNModel, TransformerModel, NBEATSModel, TFTModel,
-    ARIMA, ExponentialSmoothing, Prophet, RandomForest,
-    AutoARIMA, StatsForecastAutoETS, StatsForecastAutoTheta, StatsForecastAutoCES
+    ARIMA, ExponentialSmoothing, RandomForest,
+    AutoARIMA, AutoETS, AutoTheta, AutoCES
 )
 from darts.metrics import mae, rmse, mape
 from darts.utils.statistics import check_seasonality
@@ -62,12 +62,11 @@ class TrainingService:
             "tft": TFTModel,
             "arima": ARIMA,
             "exponential_smoothing": ExponentialSmoothing,
-            "prophet": Prophet,
             "random_forest": RandomForest,
             "auto_arima": AutoARIMA,
-            "auto_ets": StatsForecastAutoETS,
-            "auto_theta": StatsForecastAutoTheta,
-            "auto_ces": StatsForecastAutoCES
+            "auto_ets": AutoETS,
+            "auto_theta": AutoTheta,
+            "auto_ces": AutoCES
         }
     
     def train_model(self, request: ModelTrainingRequest) -> Tuple[str, ModelEvaluationMetrics]:
