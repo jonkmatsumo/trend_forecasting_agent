@@ -669,7 +669,7 @@ def get_normalization_stats(original: str, normalized: str, max_compare: int = 4
         max_compare: Maximum characters to compare for detailed stats
         
     Returns:
-        Dictionary with normalization statistics
+        Dictionary with normalization statistics (privacy-safe, no content storage)
     """
     if not original and not normalized:
         return {
@@ -678,7 +678,13 @@ def get_normalization_stats(original: str, normalized: str, max_compare: int = 4
             'vs_canonicalized': False,
             'unicode_fixed': False,
             'original_length': 0,
-            'normalized_length': 0
+            'normalized_length': 0,
+            'changed': False,
+            'percent_changed': 0.0,
+            'had_links': False,
+            'had_emails': False,
+            'had_quotes': False,
+            'had_dashes': False
         }
     
     # Enhanced character change detection
@@ -686,13 +692,29 @@ def get_normalization_stats(original: str, normalized: str, max_compare: int = 4
     replaced = sum(1 for i in range(n) if original[i] != normalized[i])
     replaced += abs(len(original) - len(normalized))
     
+    # Calculate change statistics
+    changed = original != normalized
+    percent_changed = (replaced / len(original) * 100) if original else 0.0
+    
+    # Detect content types (privacy-safe - only boolean flags, no content storage)
+    had_links = bool(_HTTP_URL_RE.search(original) or _WWW_URL_RE.search(original))
+    had_emails = bool(_EMAIL_RE.search(original))
+    had_quotes = any(char in original for char in ['"', "'", '\u2018', '\u2019', '\u201C', '\u201D'])
+    had_dashes = any(char in original for char in ['-', '\u2013', '\u2014'])
+    
     return {
         'characters_changed': replaced,
         'length_change': len(normalized) - len(original),
         'vs_canonicalized': bool(_VS_RE.search(original.lower())) and (" vs " in normalized or normalized.endswith("vs")),
         'unicode_fixed': FTFY_AVAILABLE and (original != normalized),
         'original_length': len(original),
-        'normalized_length': len(normalized)
+        'normalized_length': len(normalized),
+        'changed': changed,
+        'percent_changed': round(percent_changed, 2),
+        'had_links': had_links,
+        'had_emails': had_emails,
+        'had_quotes': had_quotes,
+        'had_dashes': had_dashes
     }
 
 

@@ -250,6 +250,145 @@ class TestNormalizationStats:
         # Should not exceed max_compare for detailed comparison
         assert stats["characters_changed"] <= 100 + abs(len(original) - len(normalized))
 
+    def test_changed_flag_for_modified_text(self):
+        """Test that changed flag correctly identifies modified text."""
+        # Test unchanged text
+        original = "Hello World"
+        normalized = "Hello World"
+        stats = get_normalization_stats(original, normalized)
+        assert stats["changed"] is False
+        assert stats["percent_changed"] == 0.0
+        
+        # Test changed text
+        original = "Hello World"
+        normalized = "hello world"
+        stats = get_normalization_stats(original, normalized)
+        assert stats["changed"] is True
+        assert stats["percent_changed"] > 0.0
+        
+        # Test empty strings
+        stats = get_normalization_stats("", "")
+        assert stats["changed"] is False
+        assert stats["percent_changed"] == 0.0
+
+    def test_percent_changed_calculation_accuracy(self):
+        """Test percent_changed calculation accuracy."""
+        # Test case folding (only 2 characters actually changed: H->h, W->w)
+        original = "Hello World"
+        normalized = "hello world"
+        stats = get_normalization_stats(original, normalized)
+        assert stats["changed"] is True
+        # Calculate expected: 2 characters changed out of 11 = 18.18%
+        expected_percent = (2 / 11) * 100
+        assert abs(stats["percent_changed"] - expected_percent) < 0.01
+        
+        # Test all characters changed
+        original = "ABC"
+        normalized = "xyz"
+        stats = get_normalization_stats(original, normalized)
+        assert stats["changed"] is True
+        assert stats["percent_changed"] == 100.0  # All 3 characters changed
+        
+        # Test partial changes
+        original = "Hello World"
+        normalized = "Hello World!"  # Added one character
+        stats = get_normalization_stats(original, normalized)
+        assert stats["changed"] is True
+        assert stats["percent_changed"] > 0.0
+        
+        # Test no changes
+        original = "Hello World"
+        normalized = "Hello World"
+        stats = get_normalization_stats(original, normalized)
+        assert stats["changed"] is False
+        assert stats["percent_changed"] == 0.0
+
+    def test_link_email_detection_in_stats(self):
+        """Test link and email detection in statistics."""
+        # Test with links
+        original = "Check out https://example.com"
+        normalized = "check out https://example.com"
+        stats = get_normalization_stats(original, normalized)
+        assert stats["had_links"] is True
+        assert stats["had_emails"] is False
+        
+        # Test with emails
+        original = "Contact user@example.com"
+        normalized = "contact user@example.com"
+        stats = get_normalization_stats(original, normalized)
+        assert stats["had_links"] is False
+        assert stats["had_emails"] is True
+        
+        # Test with both
+        original = "Visit https://example.com or email user@example.com"
+        normalized = "visit https://example.com or email user@example.com"
+        stats = get_normalization_stats(original, normalized)
+        assert stats["had_links"] is True
+        assert stats["had_emails"] is True
+        
+        # Test with neither
+        original = "Hello World"
+        normalized = "hello world"
+        stats = get_normalization_stats(original, normalized)
+        assert stats["had_links"] is False
+        assert stats["had_emails"] is False
+
+    def test_quote_dash_detection_in_stats(self):
+        """Test quote and dash detection in statistics."""
+        # Test with quotes
+        original = 'He said "Hello World"'
+        normalized = 'he said "hello world"'
+        stats = get_normalization_stats(original, normalized)
+        assert stats["had_quotes"] is True
+        assert stats["had_dashes"] is False
+        
+        # Test with smart quotes
+        original = "He said \u201CHello World\u201D"
+        normalized = 'he said "hello world"'
+        stats = get_normalization_stats(original, normalized)
+        assert stats["had_quotes"] is True
+        assert stats["had_dashes"] is False
+        
+        # Test with dashes
+        original = "iPhone-17 with features"
+        normalized = "iphone-17 with features"
+        stats = get_normalization_stats(original, normalized)
+        assert stats["had_quotes"] is False
+        assert stats["had_dashes"] is True
+        
+        # Test with smart dashes
+        original = "iPhone\u201417 with features"
+        normalized = "iphone-17 with features"
+        stats = get_normalization_stats(original, normalized)
+        assert stats["had_quotes"] is False
+        assert stats["had_dashes"] is True
+        
+        # Test with both
+        original = 'iPhone\u201417 with "smart" features'
+        normalized = 'iphone-17 with "smart" features'
+        stats = get_normalization_stats(original, normalized)
+        assert stats["had_quotes"] is True
+        assert stats["had_dashes"] is True
+
+    def test_stats_dont_contain_raw_text(self):
+        """Test that stats are privacy-safe and don't contain raw text content."""
+        original = "Sensitive data: https://example.com user@example.com 'secret'"
+        normalized = "sensitive data: https://example.com user@example.com 'secret'"
+        stats = get_normalization_stats(original, normalized)
+        
+        # Verify stats contain only metadata, not content
+        assert "original" not in stats
+        assert "normalized" not in stats
+        assert "content" not in stats
+        assert "text" not in stats
+        
+        # Verify stats contain only boolean flags and numeric values
+        for key, value in stats.items():
+            assert isinstance(value, (bool, int, float, str)), f"Unexpected type for {key}: {type(value)}"
+            if isinstance(value, str):
+                # String values should only be cache_info or similar metadata
+                assert key in ["cache_info", "cache_hit"], f"Unexpected string key: {key}"
+
 
 class TestCharacterMapping:
     """Test smart character mapping."""
