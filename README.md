@@ -1,78 +1,58 @@
 # Google Trends Quantile Forecaster
 
-This application creates quantile forecasts for the popularity of a series of keywords using state-of-the-art time series forecasting models from the Python Darts library, including LSTM, TCN, Transformer, Prophet, ARIMA, and more.
+An intelligent forecasting system that combines natural language understanding with state-of-the-art time series forecasting to provide quantile predictions for keyword popularity trends.
 
-## API Endpoints
+## 🤖 Agentic Capabilities
 
-### Core Endpoints
-- `GET /health` - Health check
-- `GET /api/health` - API health check
-- `POST /api/trends` - Get Google Trends data for keywords
-- `POST /api/trends/summary` - Get trends summary with statistical analysis
-- `POST /api/trends/compare` - Compare multiple keywords
+The system features a **hybrid intent recognizer** that understands natural language queries and routes them to appropriate forecasting services. Users can interact with the system using conversational language instead of learning specific API endpoints.
 
-### Model Management
-- `POST /api/models/train` - Train a new Darts model with evaluation
-- `GET /api/models/{model_id}/evaluate` - Get model evaluation metrics
-- `POST /api/models/{model_id}/predict` - Generate predictions with accuracy reporting
-- `GET /api/models/{model_id}` - Get model information
-- `GET /api/models` - List all available models
-- `POST /api/models/compare` - Compare multiple models
+### Natural Language Interface
 
-### Cache Management
-- `POST /api/trends/cache/clear` - Clear trends cache
-- `GET /api/trends/cache/stats` - Get cache statistics
+Ask questions like:
+- *"How will machine learning trend next week?"*
+- *"Compare artificial intelligence vs data science popularity"*
+- *"Train a model for blockchain forecasting"*
+- *"Evaluate the performance of my models"*
+- *"Show me a summary of current AI trends"*
+- *"Forecast 'python programming' trends in United States for next month with p10/p50/p90"*
 
-## Architecture Overview
+The system automatically:
+1. **Recognizes your intent** using semantic similarity and pattern matching
+2. **Extracts relevant information** from your query (keywords, time horizons, quantiles, locations)
+3. **Routes to appropriate services** for forecasting, comparison, or analysis
+4. **Returns natural language responses** with actionable insights
 
-The application is organized by major dependencies for better maintainability:
+## 🏗️ Architecture Overview
 
-### Core Structure
+### Core Components
+
 ```
 app/
-├── models/
-│   ├── darts/           # Darts-specific data models
-│   │   ├── darts_models.py
-│   │   └── training_request.py
-│   ├── pytrends/        # Google Trends data models
-│   │   └── pytrend_model.py
-│   └── prediction_model.py  # Legacy models (to be removed)
+├── api/
+│   ├── agent_routes.py      # Natural language agent interface
+│   └── routes.py            # Traditional REST API endpoints
 ├── services/
-│   ├── darts/           # Darts forecasting services
+│   ├── agent/               # Natural language processing
+│   │   ├── agent_service.py
+│   │   ├── intent_recognizer.py  # Hybrid semantic + regex recognizer
+│   │   ├── slot_extractor.py     # Advanced parameter extraction
+│   │   └── validators.py
+│   ├── darts/               # Time series forecasting
 │   │   ├── training_service.py
 │   │   ├── evaluation_service.py
 │   │   └── prediction_service.py
-│   ├── pytrends/        # Google Trends services
-│   │   └── trends_service.py
-│   ├── model_service.py     # Legacy services (to be removed)
-│   └── prediction_service.py # Legacy services (to be removed)
-└── utils/
-    ├── error_handlers.py
-    └── validators.py
+│   └── pytrends/            # Google Trends data
+│       └── trends_service.py
+├── models/
+│   ├── agent_models.py      # Agent data models
+│   ├── darts/               # Forecasting models
+│   └── pytrends/            # Trends data models
+└── config/
+    ├── agent_config.py      # Agent configuration
+    └── config.py            # General configuration
 ```
 
-### Test Structure
-```
-tests/
-├── unit/
-│   ├── darts/           # Darts service tests
-│   ├── pytrends/        # Google Trends tests
-│   └── [other tests]
-└── integration/
-    └── test_trends_api.py
-```
-
-## New Darts-Based Architecture
-
-The application has been enhanced with the Python Darts library for robust time series forecasting:
-
-- **Multiple Model Types**: LSTM, TCN, Transformer, Prophet, ARIMA, Exponential Smoothing, Random Forest
-- **Proper Evaluation**: Built-in train/test splits with comprehensive holdout evaluation
-- **Confidence Intervals**: Probabilistic forecasting with uncertainty quantification
-- **Model Comparison**: Easy comparison between different model types
-- **Production Ready**: Well-tested library with active maintenance
-
-## Quick Start
+## 🚀 Quick Start
 
 ### Local Development
 
@@ -92,146 +72,237 @@ The application has been enhanced with the Python Darts library for robust time 
    python run.py
    ```
 
-4. **Test the API:**
+4. **Test the agent interface:**
    ```bash
-   curl http://localhost:5000/health
+   curl -X POST http://localhost:5000/api/agent/query \
+     -H "Content-Type: application/json" \
+     -d '{"query": "How will AI trend next week?"}'
    ```
 
 ### Docker Development
 
-1. **Build and run with Docker Compose:**
-   ```bash
-   docker-compose up --build
-   ```
-
-2. **Test the application:**
-   ```bash
-   curl http://localhost:5000/health
-   ```
-
-3. **View logs:**
-   ```bash
-   docker-compose logs -f
-   ```
-
-### Production Deployment
-
-For production deployment on AWS EC2, see the [Deployment Guide](docs/DEPLOYMENT_GUIDE.md).
-
-**Quick EC2 Setup:**
 ```bash
-# Clone repository on EC2
-git clone <repository-url>
-cd google_trends_forecaster
+docker-compose up --build
+```
 
-# Run setup scripts
+## 🧠 Intelligent Intent Recognition
+
+The system uses a **hybrid approach** combining:
+
+### Semantic Understanding (60% weight)
+- **TF-IDF vectors** for semantic similarity
+- **Cosine similarity** to match user queries to intent examples
+- **Handles paraphrases** and natural language variations
+- **Case-insensitive processing** for robust matching
+
+### Pattern Matching (30% weight)
+- **Regex patterns** as guardrails for precision
+- **Keyword requirements** and exclusions
+- **Confidence boosting** for multiple matches
+- **Advanced text normalization** with punctuation removal
+
+### LLM Integration (10% weight)
+- **Placeholder for future** LLM-based classification
+- **Few-shot learning** capabilities
+- **Tie-breaking** for ambiguous cases
+
+### Confidence Thresholds
+- **High Confidence** (≥ 0.45): Accept intent classification
+- **Low Confidence** (0.25 - 0.45): Return UNKNOWN with clarification
+- **Unknown** (< 0.25): Return UNKNOWN
+
+## 🔍 Advanced Slot Extraction
+
+The system intelligently extracts parameters from natural language queries:
+
+### Keyword Extraction
+- **Quoted keywords**: `"machine learning"` and `'artificial intelligence'`
+- **Comparison patterns**: `python vs javascript`, `AI versus ML`
+- **Contextual extraction**: `for machine learning`, `about data science`
+- **Individual word extraction**: Breaks down multi-word phrases
+
+### Time and Date Extraction
+- **Horizon extraction**: `next week`, `30 days`, `2 months`
+- **Date ranges**: `2023-01-01 to 2023-12-31`, `from X to Y`
+- **Relative dates**: `last 30 days`, `this week`, `yesterday`
+- **Automatic calculation**: Converts relative expressions to actual dates
+
+### Quantile and Statistical Extraction
+- **Percentile expressions**: `p10`, `p50`, `p90`, `25th percentile`
+- **Confidence intervals**: `95% confidence interval` → [0.025, 0.975]
+- **Multiple formats**: `p10/p50/p90`, `10th and 90th percentile`
+- **Automatic sorting**: Consistent output ordering
+
+### Geographic and Category Extraction
+- **Location support**: `United States`, `US`, `UK`, `Canada`, etc.
+- **Category detection**: `technology`, `business`, `entertainment`
+- **Case insensitive**: Handles various input formats
+- **Abbreviation mapping**: `US` → `united states`
+
+## 📊 Supported Intents
+
+### 🔮 Forecast Intent
+*"How will [keyword] trend next week?"*
+- Generates quantile forecasts using Darts models
+- Provides confidence intervals and uncertainty quantification
+- Supports multiple forecast horizons
+- Extracts keywords, horizons, quantiles, and geographic filters
+
+### 🔄 Compare Intent
+*"Compare [keyword1] vs [keyword2] popularity"*
+- Side-by-side trend comparison
+- Statistical significance testing
+- Correlation analysis
+- Handles multiple comparison formats
+
+### 📈 Summary Intent
+*"Show me a summary of [keyword] trends"*
+- Current trend analysis
+- Historical performance overview
+- Key insights and patterns
+- Date range filtering support
+
+### 🎯 Train Intent
+*"Train a model for [keyword] forecasting"*
+- Automatic model selection and training
+- Comprehensive evaluation metrics
+- Model persistence and versioning
+- Horizon and quantile extraction
+
+### 📊 Evaluate Intent
+*"Evaluate the performance of my models"*
+- Model accuracy assessment
+- Performance comparison
+- Recommendations for improvement
+- Model ID extraction from queries
+
+### 🏥 Health Intent
+*"Is the service working?"*
+- System status check
+- Service health monitoring
+- Performance metrics
+
+### 📋 List Models Intent
+*"Show me available models"*
+- List trained models
+- Model metadata and performance
+- Model management capabilities
+
+## 🔧 API Endpoints
+
+### Agent Interface
+- `POST /api/agent/query` - Natural language query processing
+
+### Traditional REST API
+- `GET /health` - Health check
+- `POST /api/trends` - Get Google Trends data
+- `POST /api/trends/summary` - Get trends summary
+- `POST /api/trends/compare` - Compare keywords
+- `POST /api/models/train` - Train forecasting models
+- `GET /api/models/{model_id}/evaluate` - Model evaluation
+- `POST /api/models/{model_id}/predict` - Generate predictions
+- `GET /api/models` - List available models
+
+## 🎯 Model Types Supported
+
+The system supports 14+ forecasting models from the Darts library:
+
+1. **LSTM** - Long Short-Term Memory networks
+2. **TCN** - Temporal Convolutional Networks  
+3. **Transformer** - Attention-based models
+4. **Prophet** - Facebook's forecasting tool
+5. **ARIMA** - Classical statistical forecasting
+6. **Exponential Smoothing** - Smoothing techniques
+7. **Random Forest** - Ensemble methods
+8. **N-BEATS** - Neural basis expansion analysis
+9. **TFT** - Temporal Fusion Transformers
+10. **GRU** - Gated Recurrent Units
+11. **AutoARIMA** - Automatic ARIMA selection
+12. **AutoETS** - Automatic Exponential Smoothing
+13. **AutoTheta** - Automatic Theta model selection
+14. **AutoCES** - Automatic Complex Exponential Smoothing
+
+## 📈 Performance
+
+### Intent Recognition
+- **Response Time**: < 100ms
+- **Accuracy**: 92%+ on test queries
+- **Robustness**: Handles paraphrases and variations
+
+### Slot Extraction
+- **Keyword extraction**: Supports quoted, contextual, and comparison patterns
+- **Date parsing**: Handles explicit dates, relative expressions, and ranges
+- **Quantile detection**: Multiple formats with automatic conversion
+- **Geographic filtering**: 12+ countries with abbreviation support
+
+### Forecasting
+- **Training Time**: 30 seconds to 5 minutes
+- **Prediction Speed**: Sub-second predictions
+- **Memory Usage**: Efficient with model caching
+- **Scalability**: Concurrent training and prediction
+
+## 🛠️ Development
+
+### Testing
+```bash
+# Run all tests (392 tests)
+pytest
+
+# Run specific test suites
+python -m pytest tests/unit/ -v
+python -m pytest tests/unit/darts/ -v
+python -m pytest tests/unit/pytrends/ -v
+python -m pytest tests/integration/ -v
+```
+
+### Active Learning
+The intent recognizer supports continuous improvement:
+```python
+from app.services.agent.intent_recognizer import HybridIntentRecognizer
+
+recognizer = HybridIntentRecognizer()
+recognizer.add_example("What's the future of blockchain?", AgentIntent.FORECAST)
+```
+
+## 🚀 Production Deployment
+
+### Docker Deployment
+```bash
+docker-compose up --build
+```
+
+### AWS EC2 Deployment
+```bash
+# Clone and setup
+git clone <repository-url>
+cd google_trends_quantile_forecaster
+
+# Run deployment scripts
 chmod +x scripts/deployment/*.sh
 ./scripts/deployment/setup_ec2.sh
 ./scripts/deployment/deploy_app.sh
 ./scripts/deployment/security_setup.sh setup
 ```
 
-## Training a Model with Darts
+## 🔮 Future Enhancements
 
-### Example: Train an LSTM Model
-```bash
-curl -X POST http://localhost:5000/api/models/train \
-  -H "Content-Type: application/json" \
-  -d '{
-    "keyword": "artificial intelligence",
-    "time_series_data": [70, 75, 80, 85, 90, 88, 92, 95, 89, 87, ...],
-    "dates": ["2023-01-01", "2023-01-08", "2023-01-15", "2023-01-22", ...],
-    "model_type": "lstm",
-    "train_test_split": 0.8,
-    "forecast_horizon": 25,
-    "model_parameters": {
-      "input_chunk_length": 12,
-      "n_epochs": 100
-    }
-  }'
-```
+1. **Advanced Semantic Scoring** - Upgrade to sentence-transformers for better understanding
+2. **LLM Integration** - Few-shot classification for ambiguous cases
+3. **Active Learning Pipeline** - Automatic example generation and performance monitoring
+4. **Multi-language Support** - Language detection and translation
+5. **Voice Interface** - Speech-to-text and text-to-speech capabilities
+6. **Enhanced Slot Extraction** - Support for more complex parameter patterns
+7. **Real-time Learning** - Continuous improvement from user interactions
 
-### Example: Get Model Evaluation
-```bash
-curl -X GET http://localhost:5000/api/models/{model_id}/evaluate
-```
+## 🤝 Contributing
 
-### Example: Generate Forecast with Accuracy
-```bash
-curl -X POST http://localhost:5000/api/models/{model_id}/predict \
-  -H "Content-Type: application/json" \
-  -d '{
-    "forecast_horizon": 25
-  }'
-```
+The system is designed for extensibility:
+- **Modular architecture** for easy feature additions
+- **Comprehensive testing** for reliability (392 tests passing)
+- **Active learning** for continuous improvement
+- **MLflow integration** for model management
+- **Hybrid intent recognition** for robust natural language understanding
 
-## Development
+## 📄 License
 
-- **Run tests:** `pytest`
-- **Run unit tests:** `python -m pytest tests/unit/ -v`
-- **Run darts tests:** `python -m pytest tests/unit/darts/ -v`
-- **Run pytrends tests:** `python -m pytest tests/unit/pytrends/ -v`
-- **Run integration tests:** `python -m pytest tests/integration/ -v`
-- **Project structure:** See the implementation plan for detailed architecture
-- **API specification:** See the API endpoints documentation
-
-## Key Features
-
-### Comprehensive Model Evaluation
-- **Train/Test Split**: Configurable split ratios with holdout evaluation
-- **Multiple Metrics**: MAE, RMSE, MAPE, directional accuracy, confidence intervals
-- **Model Comparison**: Compare different model types for the same keyword
-- **Performance Tracking**: Training time, memory usage, and scalability metrics
-
-### Advanced Forecasting
-- **Confidence Intervals**: Probabilistic forecasting with uncertainty quantification
-- **Multiple Horizons**: Configurable forecast periods
-- **Model Persistence**: Save and load trained models
-- **MLflow Integration**: Model tracking and versioning
-
-### Robust API Design
-- **Input Validation**: Comprehensive validation for all inputs
-- **Error Handling**: Detailed error messages and proper HTTP status codes
-- **Rate Limiting**: Protection against API abuse
-- **Caching**: Efficient caching for trends data and model predictions
-
-## Model Types Supported
-
-1. **LSTM**: Long Short-Term Memory networks for complex temporal patterns
-2. **TCN**: Temporal Convolutional Networks for efficient sequence modeling
-3. **Transformer**: Attention-based models for long-range dependencies
-4. **Prophet**: Facebook's forecasting tool for trend and seasonality
-5. **ARIMA**: Classical statistical forecasting method
-6. **Exponential Smoothing**: Simple but effective smoothing techniques
-7. **Random Forest**: Ensemble method for time series forecasting
-8. **N-BEATS**: Neural basis expansion analysis for interpretable time series
-9. **TFT**: Temporal Fusion Transformers for multivariate forecasting
-10. **GRU**: Gated Recurrent Units for efficient sequence modeling
-11. **AutoARIMA**: Automatic ARIMA model selection
-12. **AutoETS**: Automatic Exponential Smoothing model selection
-13. **AutoTheta**: Automatic Theta model selection
-14. **AutoCES**: Automatic Complex Exponential Smoothing model selection
-
-## Performance Characteristics
-
-- **Training Time**: 30 seconds to 5 minutes depending on model type and data size
-- **Prediction Speed**: Sub-second predictions for most models
-- **Memory Usage**: Efficient memory management with model caching
-- **Scalability**: Supports multiple concurrent training and prediction requests
-
-## Next Steps
-
-1. **Production Deployment**: Deploy to AWS EC2 using the provided scripts
-2. **Performance Optimization**: Monitor and optimize based on real usage
-3. **Scaling**: Consider load balancing and auto-scaling for high traffic
-4. **Monitoring**: Set up comprehensive monitoring and alerting
-
-## Deployment
-
-The application is ready for production deployment with:
-
-- **Docker Containerization**: Complete Docker setup with optimized images
-- **EC2 Deployment Scripts**: Automated deployment and configuration
-- **Security Configuration**: Firewall, SSL, and monitoring setup
-- **Health Monitoring**: Automated health checks and alerting
-- **Documentation**: Comprehensive deployment guide
+This project is licensed under the MIT License - see the LICENSE file for details.

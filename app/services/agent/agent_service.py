@@ -4,7 +4,7 @@ Core agent orchestration logic for natural language processing.
 """
 
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 from datetime import datetime
 
 from app.models.agent_models import (
@@ -12,6 +12,9 @@ from app.models.agent_models import (
     AgentIntent, create_agent_response, create_agent_error, create_intent_recognition
 )
 from app.services.forecaster_interface import ForecasterServiceInterface
+from app.services.agent.intent_recognizer import IntentRecognizer
+from app.services.agent.slot_extractor import SlotExtractor, ExtractedSlots
+from app.services.agent.validators import AgentValidator, ValidationResult
 from app.utils.request_context import request_context_manager, get_current_request_id
 from app.utils.structured_logger import create_structured_logger
 
@@ -27,6 +30,9 @@ class AgentService:
         """
         self.forecaster_service = forecaster_service
         self.logger = create_structured_logger("agent_service")
+        self.intent_recognizer = IntentRecognizer()
+        self.slot_extractor = SlotExtractor()
+        self.validator = AgentValidator()
         
     def process_query(self, request: AgentRequest) -> AgentResponse:
         """Process a natural language query.
@@ -50,16 +56,54 @@ class AgentService:
                     session_id=request.session_id
                 )
                 
+                # Step 0: Validate query length
+                query_validation = self.validator.validate_query_length(request.query)
+                if not query_validation.is_valid:
+                    return create_agent_response(
+                        text="I couldn't process your request. " + " ".join(query_validation.errors),
+                        data={'errors': query_validation.errors},
+                        metadata={'intent': 'error', 'confidence': 0.0},
+                        request_id=request_id
+                    )
+                
                 # Step 1: Recognize intent
                 intent_result = self._recognize_intent(request.query)
                 
                 # Step 2: Extract slots/parameters
                 slots = self._extract_slots(request.query, intent_result.intent)
                 
-                # Step 3: Execute the action
-                result = self._execute_action(intent_result.intent, slots, request)
+                # Step 3: Validate slots
+                validation_result = self.validator.validate_slots(
+                    slots, intent_result.intent, intent_result.confidence
+                )
                 
-                # Step 4: Format the response
+                if not validation_result.is_valid:
+                    help_text = self.validator.get_validation_help(intent_result.intent)
+                    error_message = "I couldn't understand your request. " + " ".join(validation_result.errors)
+                    if help_text:
+                        error_message += f"\n\nHelp: {help_text}"
+                    
+                    return create_agent_response(
+                        text=error_message,
+                        data={
+                            'errors': validation_result.errors,
+                            'warnings': validation_result.warnings,
+                            'help': help_text
+                        },
+                        metadata={
+                            'intent': intent_result.intent.value,
+                            'confidence': intent_result.confidence
+                        },
+                        request_id=request_id
+                    )
+                
+                # Use sanitized slots if validation passed
+                sanitized_slots = validation_result.sanitized_slots or slots
+                
+                # Step 4: Execute the action
+                result = self._execute_action(intent_result.intent, sanitized_slots, request)
+                
+                # Step 5: Format the response
                 response = self._format_response(result, intent_result, request)
                 
                 # Log successful processing
@@ -101,99 +145,38 @@ class AgentService:
                 )
     
     def _recognize_intent(self, query: str) -> IntentRecognition:
-        """Recognize the intent from the natural language query.
+        """Recognize intent from natural language query.
         
         Args:
             query: The natural language query
             
         Returns:
-            IntentRecognition result
+            IntentRecognition with intent and confidence
         """
-        query_lower = query.lower().strip()
-        
-        # Simple keyword-based intent recognition
-        # In a real implementation, this would use a more sophisticated NLP model
-        
-        if any(word in query_lower for word in ['forecast', 'predict', 'future', 'next']):
-            return create_intent_recognition(AgentIntent.FORECAST, 0.9, raw_text=query)
-        
-        elif any(word in query_lower for word in ['compare', 'versus', 'vs', 'difference']):
-            return create_intent_recognition(AgentIntent.COMPARE, 0.9, raw_text=query)
-        
-        elif any(word in query_lower for word in ['summary', 'overview', 'trends', 'data']):
-            return create_intent_recognition(AgentIntent.SUMMARY, 0.8, raw_text=query)
-        
-        elif any(word in query_lower for word in ['train', 'model', 'learn']):
-            return create_intent_recognition(AgentIntent.TRAIN, 0.9, raw_text=query)
-        
-        elif any(word in query_lower for word in ['evaluate', 'performance', 'accuracy']):
-            return create_intent_recognition(AgentIntent.EVALUATE, 0.9, raw_text=query)
-        
-        elif any(word in query_lower for word in ['health', 'status', 'working']):
-            return create_intent_recognition(AgentIntent.HEALTH, 0.8, raw_text=query)
-        
-        elif any(word in query_lower for word in ['clear', 'reset']) and 'cache' in query_lower:
-            return create_intent_recognition(AgentIntent.CACHE_CLEAR, 0.7, raw_text=query)
-        
-        elif any(word in query_lower for word in ['cache', 'stats', 'statistics']):
-            return create_intent_recognition(AgentIntent.CACHE_STATS, 0.8, raw_text=query)
-        
-        else:
-            return create_intent_recognition(AgentIntent.UNKNOWN, 0.5, raw_text=query)
+        return self.intent_recognizer.recognize_intent(query)
     
-    def _extract_slots(self, query: str, intent: AgentIntent) -> Dict[str, Any]:
-        """Extract slots/parameters from the query.
+    def _extract_slots(self, query: str, intent: AgentIntent) -> ExtractedSlots:
+        """Extract slots from natural language query.
         
         Args:
             query: The natural language query
             intent: The recognized intent
             
         Returns:
-            Dictionary of extracted slots
+            ExtractedSlots with extracted parameters
         """
-        slots = {}
-        query_lower = query.lower()
+        slots = self.slot_extractor.extract_slots(query, intent)
         
-        # Extract keywords (simple approach - in real implementation would use NER)
-        # Look for quoted strings or common keyword patterns
-        import re
-        
-        # Extract quoted keywords
-        quoted_keywords = re.findall(r'"([^"]*)"', query)
-        if quoted_keywords:
-            slots['keywords'] = quoted_keywords
-        
-        # Extract single quoted keywords as fallback
-        single_quoted_keywords = re.findall(r"'([^']*)'", query)
-        if single_quoted_keywords and 'keywords' not in slots:
-            slots['keywords'] = single_quoted_keywords
-        
-        # Extract time expressions
-        if any(word in query_lower for word in ['next week', 'next month', 'next year']):
-            if 'next week' in query_lower:
-                slots['horizon'] = 7
-            elif 'next month' in query_lower:
-                slots['horizon'] = 30
-            elif 'next year' in query_lower:
-                slots['horizon'] = 365
-        
-        # Extract quantile expressions
-        if 'p10' in query_lower or 'p50' in query_lower or 'p90' in query_lower:
-            quantiles = []
-            if 'p10' in query_lower:
-                quantiles.append(0.1)
-            if 'p50' in query_lower:
-                quantiles.append(0.5)
-            if 'p90' in query_lower:
-                quantiles.append(0.9)
-            slots['quantiles'] = quantiles
-        
+        # If no keywords found, return empty slots
+        if slots.keywords is None:
+            slots.keywords = []
+            
         return slots
-    
+
     def _execute_action(
         self, 
         intent: AgentIntent, 
-        slots: Dict[str, Any], 
+        slots: Union[ExtractedSlots, Dict[str, Any]],
         request: AgentRequest
     ) -> Dict[str, Any]:
         """Execute the action based on the recognized intent.
@@ -207,28 +190,30 @@ class AgentService:
             Dictionary with the action result
         """
         try:
+            # Handle both ExtractedSlots objects and dictionaries
+            if isinstance(slots, dict):
+                # Convert dict to ExtractedSlots-like object
+                class DictSlots:
+                    def __init__(self, data):
+                        self.keywords = data.get('keywords')
+                        self.horizon = data.get('horizon')
+                        self.quantiles = data.get('quantiles')
+                        self.date_range = data.get('date_range')
+                        self.model_id = data.get('model_id')
+                        self.geo = data.get('geo')
+                        self.category = data.get('category')
+                    
+                    def to_dict(self):
+                        return {k: v for k, v in self.__dict__.items() if v is not None}
+                
+                slots = DictSlots(slots)
+            
             if intent == AgentIntent.HEALTH:
                 result = self.forecaster_service.health()
                 return {
                     'type': 'health',
                     'data': result,
                     'text': f"Service is {result.get('status', 'unknown')}"
-                }
-            
-            elif intent == AgentIntent.CACHE_STATS:
-                result = self.forecaster_service.cache_stats()
-                return {
-                    'type': 'cache_stats',
-                    'data': result,
-                    'text': f"Cache has {result.get('cache_stats', {}).get('cache_size', 0)} items"
-                }
-            
-            elif intent == AgentIntent.CACHE_CLEAR:
-                result = self.forecaster_service.cache_clear()
-                return {
-                    'type': 'cache_clear',
-                    'data': result,
-                    'text': "Cache has been cleared successfully"
                 }
             
             elif intent == AgentIntent.LIST_MODELS:
@@ -240,17 +225,111 @@ class AgentService:
                     'text': f"Found {len(models)} trained models"
                 }
             
+            elif intent == AgentIntent.FORECAST:
+                if not slots.keywords:
+                    return {
+                        'type': 'error',
+                        'data': {'error': 'No keywords provided for forecasting'},
+                        'text': "Please provide keywords to forecast. For example: 'Forecast machine learning trends'"
+                    }
+                
+                # Use first keyword for now (could be enhanced to handle multiple)
+                keyword = slots.keywords[0]
+                horizon = slots.horizon or 30  # Default to 30 days
+                quantiles = slots.quantiles or [0.1, 0.5, 0.9]  # Default quantiles
+                
+                return {
+                    'type': 'forecast',
+                    'data': {
+                        'keyword': keyword,
+                        'horizon': horizon,
+                        'quantiles': quantiles
+                    },
+                    'text': f"I'll forecast trends for '{keyword}' over the next {horizon} days with quantiles {quantiles}."
+                }
+            
+            elif intent == AgentIntent.SUMMARY:
+                if not slots.keywords:
+                    return {
+                        'type': 'error',
+                        'data': {'error': 'No keywords provided for summary'},
+                        'text': "Please provide keywords to summarize. For example: 'Give me a summary of python programming'"
+                    }
+                
+                keyword = slots.keywords[0]
+                date_range = slots.date_range or {}
+                
+                return {
+                    'type': 'summary',
+                    'data': {
+                        'keyword': keyword,
+                        'date_range': date_range
+                    },
+                    'text': f"I'll provide a summary of '{keyword}' trends."
+                }
+            
+            elif intent == AgentIntent.COMPARE:
+                if not slots.keywords or len(slots.keywords) < 2:
+                    return {
+                        'type': 'error',
+                        'data': {'error': 'Need at least 2 keywords for comparison'},
+                        'text': "Please provide at least 2 keywords to compare. For example: 'Compare machine learning vs artificial intelligence'"
+                    }
+                
+                return {
+                    'type': 'compare',
+                    'data': {
+                        'keywords': slots.keywords
+                    },
+                    'text': f"I'll compare trends for: {', '.join(slots.keywords)}"
+                }
+            
+            elif intent == AgentIntent.TRAIN:
+                if not slots.keywords:
+                    return {
+                        'type': 'error',
+                        'data': {'error': 'No keywords provided for training'},
+                        'text': "Please provide keywords to train on. For example: 'Train a model for machine learning'"
+                    }
+                
+                keyword = slots.keywords[0]
+                horizon = slots.horizon or 30
+                
+                return {
+                    'type': 'train',
+                    'data': {
+                        'keyword': keyword,
+                        'horizon': horizon
+                    },
+                    'text': f"I'll train a forecasting model for '{keyword}' with {horizon}-day horizon."
+                }
+            
+            elif intent == AgentIntent.EVALUATE:
+                model_id = slots.model_id
+                
+                return {
+                    'type': 'evaluate',
+                    'data': {
+                        'model_id': model_id
+                    },
+                    'text': f"I'll evaluate model performance{f' for model {model_id}' if model_id else ' for all models'}."
+                }
+            
             else:
-                # For more complex intents, return a placeholder
+                # For unknown intents, return a placeholder
                 return {
                     'type': 'not_implemented',
-                    'data': {'intent': intent.value, 'slots': slots},
+                    'data': {'intent': intent.value, 'slots': slots.to_dict()},
                     'text': f"I understand you want to {intent.value}, but this feature is not yet implemented."
                 }
                 
         except Exception as e:
             self.logger.logger.error(f"Error executing action for intent {intent}: {str(e)}")
-            raise
+            return {
+                'type': 'error',
+                'data': {'error': str(e)},
+                'text': f"I encountered an error while processing your request: {str(e)}"
+            }
     
     def _format_response(
         self, 
