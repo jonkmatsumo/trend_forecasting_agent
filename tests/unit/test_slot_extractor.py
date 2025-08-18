@@ -364,6 +364,140 @@ class TestSlotExtractor:
         assert 'start_date' in slots.date_range
         assert 'end_date' in slots.date_range
     
+    def test_b4_enhanced_iso_date_range_to_separator(self):
+        """Test B4.4: ISO date range with 'to' separator."""
+        query = "Forecast 2024-01-01 to 2024-12-31"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        assert slots.date_range is not None
+        assert slots.date_range['start_date'] == "2024-01-01"
+        assert slots.date_range['end_date'] == "2024-12-31"
+    
+    def test_b4_enhanced_iso_date_range_until_separator(self):
+        """Test B4.5: ISO date range with 'until' separator."""
+        query = "Forecast 2024-01-01 until 2024-12-31"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        assert slots.date_range is not None
+        assert slots.date_range['start_date'] == "2024-01-01"
+        assert slots.date_range['end_date'] == "2024-12-31"
+    
+    def test_b4_enhanced_iso_date_range_through_separator(self):
+        """Test B4.6: ISO date range with 'through' separator."""
+        query = "Forecast 2024-01-01 through 2024-12-31"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        assert slots.date_range is not None
+        assert slots.date_range['start_date'] == "2024-01-01"
+        assert slots.date_range['end_date'] == "2024-12-31"
+    
+    def test_b4_enhanced_iso_date_range_hyphen_separator(self):
+        """Test B4.7: ISO date range with hyphen separator."""
+        query = "Forecast 2024-01-01 - 2024-12-31"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        assert slots.date_range is not None
+        assert slots.date_range['start_date'] == "2024-01-01"
+        assert slots.date_range['end_date'] == "2024-12-31"
+    
+    def test_b4_enhanced_iso_date_range_en_dash_separator(self):
+        """Test B4.8: ISO date range with en dash separator."""
+        query = "Forecast 2024-01-01 – 2024-12-31"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        assert slots.date_range is not None
+        assert slots.date_range['start_date'] == "2024-01-01"
+        assert slots.date_range['end_date'] == "2024-12-31"
+    
+    def test_b4_enhanced_iso_date_range_em_dash_separator(self):
+        """Test B4.9: ISO date range with em dash separator."""
+        query = "Forecast 2024-01-01 — 2024-12-31"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        assert slots.date_range is not None
+        assert slots.date_range['start_date'] == "2024-01-01"
+        assert slots.date_range['end_date'] == "2024-12-31"
+    
+    def test_b4_enhanced_iso_date_range_from_to_pattern(self):
+        """Test B4: ISO date range with 'from X to Y' pattern."""
+        query = "Forecast from 2024-01-01 to 2024-12-31"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        assert slots.date_range is not None
+        assert slots.date_range['start_date'] == "2024-01-01"
+        assert slots.date_range['end_date'] == "2024-12-31"
+    
+    def test_b4_enhanced_iso_date_range_between_and_pattern(self):
+        """Test B4: ISO date range with 'between X and Y' pattern."""
+        query = "Forecast between 2024-01-01 and 2024-12-31"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        assert slots.date_range is not None
+        assert slots.date_range['start_date'] == "2024-01-01"
+        assert slots.date_range['end_date'] == "2024-12-31"
+    
+    def test_b4_enhanced_iso_date_range_invalid_dates_ignored(self):
+        """Test B4.10: Invalid date ranges are ignored."""
+        # Test invalid date format
+        query = "Forecast 2024-13-01 to 2024-12-31"  # Invalid month 13
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.date_range is None
+        
+        # Test invalid date format
+        query = "Forecast 2024-01-32 to 2024-12-31"  # Invalid day 32
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.date_range is None
+        
+        # Test malformed date
+        query = "Forecast 2024-1-1 to 2024-12-31"  # Missing leading zeros
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.date_range is None
+        
+        # Test non-ISO format
+        query = "Forecast 01/01/2024 to 12/31/2024"  # MM/DD/YYYY format
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.date_range is None
+    
+    def test_b4_enhanced_iso_date_range_whitespace_variations(self):
+        """Test B4: ISO date range with various whitespace patterns."""
+        test_cases = [
+            ("Forecast 2024-01-01 to 2024-12-31", "2024-01-01", "2024-12-31"),
+            ("Forecast 2024-01-01  to  2024-12-31", "2024-01-01", "2024-12-31"),  # Multiple spaces
+            ("Forecast 2024-01-01\tto\t2024-12-31", "2024-01-01", "2024-12-31"),  # Tabs
+            ("Forecast 2024-01-01\nthrough\n2024-12-31", "2024-01-01", "2024-12-31"),  # Newlines
+            ("Forecast 2024-01-01-2024-12-31", "2024-01-01", "2024-12-31"),  # No spaces around dash
+            ("Forecast 2024-01-01 – 2024-12-31", "2024-01-01", "2024-12-31"),  # En dash
+            ("Forecast 2024-01-01 — 2024-12-31", "2024-01-01", "2024-12-31"),  # Em dash
+        ]
+        
+        for query, expected_start, expected_end in test_cases:
+            slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+            assert slots.date_range is not None, f"Failed for query: {query}"
+            assert slots.date_range['start_date'] == expected_start, f"Failed for query: {query}"
+            assert slots.date_range['end_date'] == expected_end, f"Failed for query: {query}"
+    
+    def test_b4_enhanced_iso_date_range_compatibility_with_existing(self):
+        """Test B4.3: Ensure compatibility with existing date extraction."""
+        # Test that existing relative date patterns still work
+        query = "Forecast for the last 30 days"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.date_range is not None
+        
+        # Test that existing "last week" pattern still works
+        query = "Forecast for last week"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.date_range is not None
+        
+        # Test that existing "last month" pattern still works
+        query = "Forecast for last month"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.date_range is not None
+        
+        # Test that existing "last year" pattern still works
+        query = "Forecast for last year"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.date_range is not None
+    
     def test_extract_model_id_uuid(self):
         """Test extraction of UUID model IDs."""
         query = "Evaluate model 123e4567-e89b-12d3-a456-426614174000"

@@ -332,23 +332,32 @@ class SlotExtractor:
         Returns:
             Dictionary with start_date and end_date, or None
         """
-        # Check for explicit date patterns (YYYY-MM-DD to YYYY-MM-DD)
-        explicit_date_pattern = r'(\d{4}-\d{2}-\d{2})\s+(?:to|until|through)\s+(\d{4}-\d{2}-\d{2})'
-        match = re.search(explicit_date_pattern, query)
-        if match:
-            return {
-                'start_date': match.group(1),
-                'end_date': match.group(2)
-            }
+        # B4.1: Enhanced ISO date range regex patterns
+        # B4.2: Support various separators (to, until, through, -, –, —)
+        iso_date_patterns = [
+            # Standard ISO format with word separators
+            r'(\d{4}-\d{2}-\d{2})\s+(?:to|until|through)\s+(\d{4}-\d{2}-\d{2})',
+            # ISO format with dash separators (hyphen, en dash, em dash)
+            r'(\d{4}-\d{2}-\d{2})\s*[-–—]\s*(\d{4}-\d{2}-\d{2})',
+            # "from X to Y" pattern
+            r'from\s+(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})',
+            # "between X and Y" pattern
+            r'between\s+(\d{4}-\d{2}-\d{2})\s+and\s+(\d{4}-\d{2}-\d{2})',
+        ]
         
-        # Check for "from X to Y" pattern
-        from_to_pattern = r'from\s+(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})'
-        match = re.search(from_to_pattern, query)
-        if match:
-            return {
-                'start_date': match.group(1),
-                'end_date': match.group(2)
-            }
+        for pattern in iso_date_patterns:
+            match = re.search(pattern, query)
+            if match:
+                start_date = match.group(1)
+                end_date = match.group(2)
+                
+                # B4.3: Ensure compatibility with existing date extraction
+                # Validate that dates are in proper ISO format
+                if self._is_valid_iso_date(start_date) and self._is_valid_iso_date(end_date):
+                    return {
+                        'start_date': start_date,
+                        'end_date': end_date
+                    }
         
         # Check for relative time expressions with "last X days"
         last_days_pattern = r'last\s+(\d+)\s+days?'
@@ -389,6 +398,26 @@ class SlotExtractor:
             return {'start_date': start_date, 'end_date': end_date}
         
         return None
+    
+    def _is_valid_iso_date(self, date_str: str) -> bool:
+        """Validate if a string is a valid ISO date format (YYYY-MM-DD).
+        
+        Args:
+            date_str: Date string to validate
+            
+        Returns:
+            True if valid ISO date, False otherwise
+        """
+        try:
+            # Check if it matches ISO format
+            if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
+                return False
+            
+            # Try to parse the date to ensure it's valid
+            datetime.strptime(date_str, '%Y-%m-%d')
+            return True
+        except ValueError:
+            return False
     
     def _extract_model_id(self, query: str) -> Optional[str]:
         """Extract model ID from query.
