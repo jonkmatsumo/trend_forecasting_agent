@@ -276,12 +276,13 @@ class IntentRecognizer:
             ScorerType.LLM: Config.INTENT_LLM_ENSEMBLE_WEIGHTS["llm"]
         }
     
-    def recognize_intent(self, query: str, raw_text: Optional[str] = None) -> 'IntentRecognition':
+    def recognize_intent(self, query: str, raw_text: Optional[str] = None, is_normalized: bool = False) -> 'IntentRecognition':
         """Recognize intent from a natural language query.
         
         Args:
             query: The user query (can be pre-normalized)
             raw_text: Original raw text (for logging/statistics)
+            is_normalized: Whether the query is already normalized (default: False)
             
         Returns:
             IntentRecognition with intent and confidence
@@ -289,8 +290,14 @@ class IntentRecognizer:
         # Store original text for reference
         original_text = raw_text if raw_text is not None else query
         
-        # Normalize text for processing
-        normalized_text, norm_stats = self.text_normalizer.normalize(query)
+        # C1.2: Implement normalization skip logic
+        if is_normalized:
+            # Skip normalization if already normalized
+            normalized_text = query
+            norm_stats = {"skipped": True, "reason": "already_normalized"}
+        else:
+            # Normalize text for processing
+            normalized_text, norm_stats = self.text_normalizer.normalize(query)
         
         # Get scores from different scorers
         semantic_result = self._semantic_scorer(normalized_text)
