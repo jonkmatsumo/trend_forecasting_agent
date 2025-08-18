@@ -49,7 +49,7 @@ def recognize_intent(state: AgentState) -> AgentState:
     
     # Use the existing intent recognizer
     recognizer = IntentRecognizer()
-            intent_result = recognizer.recognize_intent(state.norm_strict, raw_text=state.raw, is_normalized=True)
+    intent_result = recognizer.recognize_intent(state.norm_strict, raw_text=state.raw, is_normalized=True)
     
     state.intent = intent_result.intent
     state.intent_conf = intent_result.confidence
