@@ -48,8 +48,8 @@ export class AgentChatComponent implements OnInit {
 
     try {
       const response = await this.agentService.askAgent({
-        query,
-        session_id: this.sessionId
+        message: query,
+        context: this.sessionId
       }).toPromise();
 
       if (response) {

@@ -1,20 +1,20 @@
 export interface AgentRequest {
-  query: string;
-  context?: any;
-  user_id?: string;
-  session_id?: string;
+  message: string;
+  context?: string;
+  options?: {
+    maxTokens?: number;
+    temperature?: number;
+  };
 }
 
 export interface AgentResponse {
-  text: string;
-  data?: any;
-  metadata?: {
-    confidence?: number;
-    sources?: string[];
-    [key: string]: any;
-  };
+  response: string;
+  messageId: string;
   timestamp: string;
-  request_id: string;
+  metadata?: {
+    tokensUsed?: number;
+    processingTime?: number;
+  };
 }
 
 export interface ChatMessage {
@@ -24,4 +24,13 @@ export interface ChatMessage {
   data?: any;
   metadata?: any;
   timestamp: Date;
+}
+
+export interface AgentConfig {
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  timeout?: number;
+  retryAttempts?: number;
+  systemPrompt?: string;
 } 

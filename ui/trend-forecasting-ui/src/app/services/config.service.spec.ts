@@ -22,7 +22,7 @@ describe('ConfigService', () => {
     });
 
     it('should return correct API base URL', () => {
-      expect(service.apiBaseUrl).toBe(environment.apiUrl);
+      expect(service.apiUrl).toBe(environment.apiUrl);
     });
 
     it('should return correct API timeout', () => {

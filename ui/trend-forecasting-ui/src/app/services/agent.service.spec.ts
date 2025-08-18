@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { AgentService } from './agent.service';
-import { AgentRequest, AgentResponse, AgentMessage } from '../models/agent.models';
+import { AgentRequest, AgentResponse, ChatMessage } from '../models/agent.models';
 
 describe('AgentService', () => {
   let service: AgentService;
@@ -105,7 +105,7 @@ describe('AgentService', () => {
   });
 
   describe('getChatHistory', () => {
-    const mockMessages: AgentMessage[] = [
+    const mockMessages: ChatMessage[] = [
       {
         id: 'msg-1',
         content: 'Hello',
@@ -352,7 +352,7 @@ describe('AgentService', () => {
       });
 
       const req = httpMock.expectOne(`${baseUrl}/api/agent/chat`);
-      req.flush(undefined);
+      req.flush(null);
     });
   });
 

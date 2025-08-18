@@ -6,8 +6,8 @@
       [title]="notification.title"
       [message]="notification.message"
       [duration]="notification.duration"
-      [autoClose]="notification.autoClose"
-      [dismissible]="notification.dismissible"
+      [autoClose]="notification.autoClose ?? true"
+      [dismissible]="notification.dismissible ?? true"
       [actions]="notification.actions"
       (dismissed)="onNotificationDismissed(notification.id)"
       (actionClicked)="onActionClicked($event, notification.id)">

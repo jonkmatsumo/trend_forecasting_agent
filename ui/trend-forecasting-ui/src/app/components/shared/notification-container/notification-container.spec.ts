@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { NotificationContainerComponent } from './notification-container';
-import { NotificationService, NotificationInstance, NotificationAction } from '../../../services/notification.service';
+import { NotificationService, NotificationInstance } from '../../../services/notification.service';
+import { NotificationAction } from '../notification/notification';
 import { of } from 'rxjs';
 
 describe('NotificationContainerComponent', () => {
