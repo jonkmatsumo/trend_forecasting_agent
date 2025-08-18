@@ -114,6 +114,238 @@ class TestSlotExtractor:
         assert 0.025 in slots.quantiles
         assert 0.975 in slots.quantiles
     
+    def test_b3_enhanced_quantile_extraction_p10_formats(self):
+        """Test B3.6: p10 format variations."""
+        # Test p10 format
+        query = "Forecast with p10"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.1 in slots.quantiles
+        
+        # Test P10 format (uppercase)
+        query = "Forecast with P10"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.1 in slots.quantiles
+        
+        # Test p 10 format (with space)
+        query = "Forecast with p 10"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.1 in slots.quantiles
+        
+        # Test P 10 format (uppercase with space)
+        query = "Forecast with P 10"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.1 in slots.quantiles
+    
+    def test_b3_enhanced_quantile_extraction_p90_formats(self):
+        """Test B3.7: P90 format variations."""
+        # Test p90 format
+        query = "Forecast with p90"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.9 in slots.quantiles
+        
+        # Test P90 format (uppercase)
+        query = "Forecast with P90"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.9 in slots.quantiles
+        
+        # Test p 90 format (with space)
+        query = "Forecast with p 90"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.9 in slots.quantiles
+        
+        # Test P 90 format (uppercase with space)
+        query = "Forecast with P 90"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.9 in slots.quantiles
+    
+    def test_b3_enhanced_quantile_extraction_p50_formats(self):
+        """Test B3.8: p 50 format variations."""
+        # Test p50 format
+        query = "Forecast with p50"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.5 in slots.quantiles
+        
+        # Test P50 format (uppercase)
+        query = "Forecast with P50"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.5 in slots.quantiles
+        
+        # Test p 50 format (with space)
+        query = "Forecast with p 50"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.5 in slots.quantiles
+        
+        # Test P 50 format (uppercase with space)
+        query = "Forecast with P 50"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.5 in slots.quantiles
+    
+    def test_b3_enhanced_quantile_extraction_percentage_notation(self):
+        """Test B3.9: Percentage notation (90%, 90 %)."""
+        # Test 90% format
+        query = "Forecast with 90%"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.9 in slots.quantiles
+        
+        # Test 90 % format (with space)
+        query = "Forecast with 90 %"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.9 in slots.quantiles
+        
+        # Test 10% format
+        query = "Forecast with 10%"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.1 in slots.quantiles
+        
+        # Test 10 % format (with space)
+        query = "Forecast with 10 %"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.1 in slots.quantiles
+        
+        # Test 50% format
+        query = "Forecast with 50%"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.5 in slots.quantiles
+        
+        # Test 50 % format (with space)
+        query = "Forecast with 50 %"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.5 in slots.quantiles
+    
+    def test_b3_enhanced_quantile_extraction_percentage_notation_10_percent(self):
+        """Test B3.10: 90 % format variations."""
+        # Test 90 percent format
+        query = "Forecast with 90 percent"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.9 in slots.quantiles
+        
+        # Test 10 percent format
+        query = "Forecast with 10 percent"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.1 in slots.quantiles
+        
+        # Test 50 percent format
+        query = "Forecast with 50 percent"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert 0.5 in slots.quantiles
+    
+    def test_b3_enhanced_quantile_extraction_multiple_quantiles(self):
+        """Test B3.11: p10 p90 multiple quantiles."""
+        # Test multiple quantiles in various formats
+        query = "Forecast with p10 p90"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.quantiles == [0.1, 0.9]
+        
+        # Test mixed formats
+        query = "Forecast with P10 and p90"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.quantiles == [0.1, 0.9]
+        
+        # Test with spaces
+        query = "Forecast with p 10 and p 90"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.quantiles == [0.1, 0.9]
+        
+        # Test mixed percentage and p notation
+        query = "Forecast with 10% and p90"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.quantiles == [0.1, 0.9]
+        
+        # Test multiple percentages
+        query = "Forecast with 10% and 90%"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.quantiles == [0.1, 0.9]
+    
+    def test_b3_enhanced_quantile_extraction_invalid_quantiles_ignored(self):
+        """Test B3.12: Invalid quantiles are ignored."""
+        # Test invalid quantiles (outside 0-100 range)
+        query = "Forecast with p0 and p100"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        # Should not extract p0 (0.0) or p100 (1.0) as they're not in (0,1) range
+        assert slots.quantiles is None or (0.0 not in slots.quantiles and 1.0 not in slots.quantiles)
+        
+        # Test invalid percentages
+        query = "Forecast with 0% and 100%"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        # Should not extract 0% (0.0) or 100% (1.0) as they're not in (0,1) range
+        assert slots.quantiles is None or (0.0 not in slots.quantiles and 1.0 not in slots.quantiles)
+        
+        # Test negative values
+        query = "Forecast with p-10"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        # Should not extract negative values
+        assert slots.quantiles is None or all(q > 0 for q in slots.quantiles)
+        
+        # Test values over 100
+        query = "Forecast with p150"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        # Should not extract values over 100
+        assert slots.quantiles is None or all(q < 1 for q in slots.quantiles)
+    
+    def test_b3_enhanced_quantile_extraction_whitespace_variations(self):
+        """Test B3.4: Handle whitespace variations."""
+        # Test various whitespace patterns
+        test_cases = [
+            ("Forecast with p 10", [0.1]),
+            ("Forecast with p  10", [0.1]),  # Multiple spaces
+            ("Forecast with p\t10", [0.1]),  # Tab
+            ("Forecast with p\n10", [0.1]),  # Newline
+            ("Forecast with P 10", [0.1]),
+            ("Forecast with P  10", [0.1]),  # Multiple spaces
+            ("Forecast with 10 %", [0.1]),
+            ("Forecast with 10  %", [0.1]),  # Multiple spaces
+            ("Forecast with 10\t%", [0.1]),  # Tab
+            ("Forecast with 10\n%", [0.1]),  # Newline
+        ]
+        
+        for query, expected_quantiles in test_cases:
+            slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+            for expected_q in expected_quantiles:
+                assert expected_q in slots.quantiles, f"Failed for query: {query}"
+    
+    def test_b3_enhanced_quantile_extraction_percentile_whitespace_variations(self):
+        """Test B3.4: Handle whitespace variations in percentile expressions."""
+        # Test various whitespace patterns in percentile expressions
+        test_cases = [
+            ("Forecast with 10th percentile", [0.1]),
+            ("Forecast with 10 th percentile", [0.1]),  # Space before 'th'
+            ("Forecast with 10  th percentile", [0.1]),  # Multiple spaces
+            ("Forecast with 10\tth percentile", [0.1]),  # Tab
+            ("Forecast with 10\nth percentile", [0.1]),  # Newline
+            ("Forecast with 25th percentile", [0.25]),
+            ("Forecast with 25 th percentile", [0.25]),  # Space before 'th'
+            ("Forecast with 50th percentile", [0.5]),
+            ("Forecast with 50 th percentile", [0.5]),  # Space before 'th'
+        ]
+        
+        for query, expected_quantiles in test_cases:
+            slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+            for expected_q in expected_quantiles:
+                assert expected_q in slots.quantiles, f"Failed for query: {query}"
+    
+    def test_b3_enhanced_quantile_extraction_validation(self):
+        """Test B3.5: Ensure proper validation (0 < q < 1)."""
+        # Test boundary conditions
+        test_cases = [
+            ("Forecast with p1", [0.01]),    # Valid: 0.01
+            ("Forecast with p99", [0.99]),   # Valid: 0.99
+            ("Forecast with 1%", [0.01]),    # Valid: 0.01
+            ("Forecast with 99%", [0.99]),   # Valid: 0.99
+            ("Forecast with p0", []),        # Invalid: 0.0
+            ("Forecast with p100", []),      # Invalid: 1.0
+            ("Forecast with 0%", []),        # Invalid: 0.0
+            ("Forecast with 100%", []),      # Invalid: 1.0
+        ]
+        
+        for query, expected_quantiles in test_cases:
+            slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+            if expected_quantiles:
+                for expected_q in expected_quantiles:
+                    assert expected_q in slots.quantiles, f"Failed for query: {query}"
+            else:
+                # Should not extract any quantiles for invalid cases
+                assert slots.quantiles is None or len(slots.quantiles) == 0, f"Failed for query: {query}"
+    
     def test_extract_date_range_explicit(self):
         """Test extraction of explicit date ranges."""
         query = "Forecast from 2023-01-01 to 2023-12-31"

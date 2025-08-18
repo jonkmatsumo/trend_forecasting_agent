@@ -249,27 +249,55 @@ class SlotExtractor:
         """
         quantiles = []
         
-        # Check for explicit quantile patterns
+        # Check for explicit quantile patterns (from quantile_patterns)
         for pattern, quantile in self.quantile_patterns.items():
             if re.search(pattern, query):
                 if quantile not in quantiles:  # Avoid duplicates
                     quantiles.append(quantile)
         
-        # Check for percentile expressions
-        percentile_pattern = r'(\d+)th\s+percentile'
-        matches = re.findall(percentile_pattern, query)
-        for match in matches:
-            percentile = int(match) / 100.0
-            if 0 < percentile < 1 and percentile not in quantiles:
-                quantiles.append(percentile)
+        # Enhanced quantile patterns with case variations and whitespace
+        # B3.2: Support for P10, p 10, p10 formats
+        # B3.4: Handle whitespace variations
+        enhanced_p_patterns = [
+            r'\bp\s*(\d+)\b',  # p 10, p10
+            r'\bP\s*(\d+)\b',  # P 10, P10
+        ]
         
-        # Check for p10/p50/p90 style patterns
-        p_pattern = r'p(\d+)'
-        p_matches = re.findall(p_pattern, query)
-        for match in p_matches:
-            percentile = int(match) / 100.0
-            if 0 < percentile < 1 and percentile not in quantiles:
-                quantiles.append(percentile)
+        for pattern in enhanced_p_patterns:
+            matches = re.findall(pattern, query)
+            for match in matches:
+                percentile = int(match) / 100.0
+                # B3.5: Ensure proper validation (0 < q < 1)
+                if 0 < percentile < 1 and percentile not in quantiles:
+                    quantiles.append(percentile)
+        
+        # B3.3: Add support for percentage notation (90%, 90 %)
+        percentage_patterns = [
+            r'(\d+)\s*%',  # 90%, 90 %
+            r'\b(\d+)\s+percent\b',  # 90 percent
+        ]
+        
+        for pattern in percentage_patterns:
+            matches = re.findall(pattern, query)
+            for match in matches:
+                percentile = int(match) / 100.0
+                # B3.5: Ensure proper validation (0 < q < 1)
+                if 0 < percentile < 1 and percentile not in quantiles:
+                    quantiles.append(percentile)
+        
+        # Enhanced percentile expressions with whitespace variations
+        enhanced_percentile_patterns = [
+            r'\b(\d+)th\s+percentile\b',  # 10th percentile
+            r'\b(\d+)\s*th\s+percentile\b',  # 10 th percentile
+        ]
+        
+        for pattern in enhanced_percentile_patterns:
+            matches = re.findall(pattern, query)
+            for match in matches:
+                percentile = int(match) / 100.0
+                # B3.5: Ensure proper validation (0 < q < 1)
+                if 0 < percentile < 1 and percentile not in quantiles:
+                    quantiles.append(percentile)
         
         # Check for "confidence interval" expressions
         if 'confidence' in query and 'interval' in query:
@@ -478,16 +506,39 @@ class SlotExtractor:
     def _build_quantile_patterns(self) -> Dict[str, float]:
         """Build quantile expression patterns."""
         return {
+            # B3.1: Enhanced quantile regex patterns
+            # B3.2: Support for P10, p 10, p10 formats
             r'\bp10\b': 0.1,
+            r'\bP10\b': 0.1,
+            r'\bp\s*10\b': 0.1,
+            r'\bP\s*10\b': 0.1,
             r'\bp25\b': 0.25,
+            r'\bP25\b': 0.25,
+            r'\bp\s*25\b': 0.25,
+            r'\bP\s*25\b': 0.25,
             r'\bp50\b': 0.5,
+            r'\bP50\b': 0.5,
+            r'\bp\s*50\b': 0.5,
+            r'\bP\s*50\b': 0.5,
             r'\bp75\b': 0.75,
+            r'\bP75\b': 0.75,
+            r'\bp\s*75\b': 0.75,
+            r'\bP\s*75\b': 0.75,
             r'\bp90\b': 0.9,
-            r'\b10th percentile\b': 0.1,
-            r'\b25th percentile\b': 0.25,
-            r'\b50th percentile\b': 0.5,
-            r'\b75th percentile\b': 0.75,
-            r'\b90th percentile\b': 0.9,
+            r'\bP90\b': 0.9,
+            r'\bp\s*90\b': 0.9,
+            r'\bP\s*90\b': 0.9,
+            # B3.4: Handle whitespace variations in percentile expressions
+            r'\b10th\s+percentile\b': 0.1,
+            r'\b10\s*th\s+percentile\b': 0.1,
+            r'\b25th\s+percentile\b': 0.25,
+            r'\b25\s*th\s+percentile\b': 0.25,
+            r'\b50th\s+percentile\b': 0.5,
+            r'\b50\s*th\s+percentile\b': 0.5,
+            r'\b75th\s+percentile\b': 0.75,
+            r'\b75\s*th\s+percentile\b': 0.75,
+            r'\b90th\s+percentile\b': 0.9,
+            r'\b90\s*th\s+percentile\b': 0.9,
             r'\bmedian\b': 0.5
         }
     
