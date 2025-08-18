@@ -64,10 +64,10 @@ class SlotExtractor:
         
         slots = ExtractedSlots()
         
-        # Extract keywords using loose normalization (preserves case and edge punctuation)
+        # Route keywords to use norm_loose (preserves case and edge punctuation for better keyword extraction)
         slots.keywords = self._extract_keywords(query, norm_loose)
         
-        # Extract intent-specific slots using strict normalization (for regex matching)
+        # Route regex fields to use norm_strict (casefolded and trimmed for consistent regex matching)
         if intent in [AgentIntent.FORECAST, AgentIntent.TRAIN]:
             slots.horizon = self._extract_horizon(norm_strict)
             slots.quantiles = self._extract_quantiles(norm_strict)
@@ -75,11 +75,11 @@ class SlotExtractor:
         elif intent == AgentIntent.EVALUATE:
             slots.model_id = self._extract_model_id(norm_strict)
             
-        # Extract common slots (available for all intents)
+        # Extract common slots using strict normalization (for regex matching)
         slots.geo = self._extract_geo(norm_strict)
         slots.category = self._extract_category(norm_strict)
         
-        # Extract date range for all intents that might need it
+        # Extract date range using strict normalization (for regex matching)
         if intent in [AgentIntent.FORECAST, AgentIntent.SUMMARY, AgentIntent.COMPARE]:
             slots.date_range = self._extract_date_range(norm_strict)
         
@@ -105,7 +105,8 @@ class SlotExtractor:
         single_quoted_keywords = re.findall(r"'([^']*)'", query)
         keywords.extend(single_quoted_keywords)
         
-        # Extract keywords from comparison patterns (vs, versus, etc.) - use normalized text
+        # Extract keywords from comparison patterns (vs, versus, etc.) - use norm_loose
+        # Note: norm_loose preserves case and edge punctuation for better keyword extraction
         comparison_patterns = [
             r'\b([a-zA-Z0-9\s]+?)\s+vs\.?\s+([a-zA-Z0-9\s]+?)\b',
             r'\b([a-zA-Z0-9\s]+?)\s+versus\s+([a-zA-Z0-9\s]+?)\b',
@@ -126,7 +127,8 @@ class SlotExtractor:
                     if len(keyword) > 2 and keyword not in keywords:
                         keywords.append(keyword)
         
-        # Extract keywords after "for" or "about" - use normalized text
+        # Extract keywords after "for" or "about" - use norm_loose
+        # Note: norm_loose preserves case and edge punctuation for better keyword extraction
         for_patterns = [
             r'\bfor\s+([a-zA-Z0-9\s]+?)(?:\s+(?:next|in|over|during|the|a|an|this|that))',
             r'\babout\s+([a-zA-Z0-9\s]+?)(?:\s+(?:next|in|over|during|the|a|an|this|that))',
@@ -143,7 +145,8 @@ class SlotExtractor:
                 if len(keyword) > 2 and keyword not in keywords:
                     keywords.append(keyword)
         
-        # Extract keywords before common stop words - use normalized text
+        # Extract keywords before common stop words - use norm_loose
+        # Note: norm_loose preserves case and edge punctuation for better keyword extraction
         stop_words = ['next', 'in', 'over', 'during', 'the', 'a', 'an', 'this', 'that', 'will', 'is', 'are', 'what', 'how', 'when', 'where', 'why', 'who', 'for', 'with', 'and', 'or', 'but', 'to', 'from', 'by', 'at', 'on', 'up', 'down', 'out', 'off', 'through', 'between', 'among', 'within', 'without', 'against', 'toward', 'towards', 'into', 'onto', 'upon', 'about', 'above', 'below', 'beneath', 'under', 'over', 'across', 'along', 'around', 'behind', 'before', 'after', 'since', 'until', 'while', 'during', 'throughout', 'despite', 'except', 'besides', 'like', 'unlike', 'as', 'than', 'per', 'via', 'versus', 'vs', 'week', 'month', 'year', 'day', 'days', 'weeks', 'months', 'years', 'last', 'first', 'current', 'recent', 'latest', 'previous', 'trends', 'trend', 'data', 'information', 'summary', 'overview', 'insights', 'performance', 'accuracy', 'metrics', 'scores', 'results', 'health', 'working', 'alive', 'okay', 'cache', 'stats', 'statistics', 'list', 'show', 'display', 'models', 'model', 'train', 'build', 'create', 'develop', 'evaluate', 'assess', 'test']
         words = norm_loose.split()
         
@@ -206,7 +209,8 @@ class SlotExtractor:
         """Extract forecast horizon from query.
         
         Args:
-            query: Lowercase query text
+            query: Strictly normalized query text (casefolded and trimmed)
+                   Uses norm_strict for consistent regex matching
             
         Returns:
             Horizon in days, or None if not found
@@ -237,7 +241,8 @@ class SlotExtractor:
         """Extract quantiles from query.
         
         Args:
-            query: Lowercase query text
+            query: Strictly normalized query text (casefolded and trimmed)
+                   Uses norm_strict for consistent regex matching
             
         Returns:
             List of quantiles, or None if not found
@@ -293,7 +298,8 @@ class SlotExtractor:
         """Extract date range from query.
         
         Args:
-            query: Lowercase query text
+            query: Strictly normalized query text (casefolded and trimmed)
+                   Uses norm_strict for consistent regex matching
             
         Returns:
             Dictionary with start_date and end_date, or None
@@ -360,7 +366,8 @@ class SlotExtractor:
         """Extract model ID from query.
         
         Args:
-            query: Lowercase query text
+            query: Strictly normalized query text (casefolded and trimmed)
+                   Uses norm_strict for consistent regex matching
             
         Returns:
             Model ID, or None if not found
@@ -383,7 +390,8 @@ class SlotExtractor:
         """Extract geographic location from query.
         
         Args:
-            query: Lowercase query text
+            query: Strictly normalized query text (casefolded and trimmed)
+                   Uses norm_strict for consistent regex matching
             
         Returns:
             Geographic location, or None if not found
@@ -424,7 +432,8 @@ class SlotExtractor:
         """Extract category from query.
         
         Args:
-            query: Lowercase query text
+            query: Strictly normalized query text (casefolded and trimmed)
+                   Uses norm_strict for consistent regex matching
             
         Returns:
             Category, or None if not found

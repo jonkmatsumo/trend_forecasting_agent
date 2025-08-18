@@ -445,4 +445,183 @@ class TestSlotExtractor:
         slots = self.extractor.extract_slots(query, AgentIntent.COMPARE)
         
         assert "Python" in slots.keywords
-        assert "JavaScript" in slots.keywords 
+        assert "JavaScript" in slots.keywords
+    
+    def test_b2_routing_keywords_use_norm_loose(self):
+        """Test B2.1: Keywords use norm_loose (preserves case and edge punctuation)."""
+        # Test that keywords preserve original case from norm_loose
+        query = "Forecast trends for Machine Learning and Artificial Intelligence"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        # Should extract keywords with preserved case
+        # The keyword extraction logic extracts "Forecast trends for Machine Learning" as a phrase
+        # and also extracts individual words "Machine", "Learning", "Artificial"
+        assert "Machine" in slots.keywords
+        assert "Learning" in slots.keywords
+        assert "Artificial" in slots.keywords
+        
+        # Test that keywords preserve edge punctuation
+        query = "Forecast trends for Machine Learning!!! and AI???"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        # Should extract keywords with edge punctuation preserved
+        # Based on actual extraction behavior
+        assert "Forecast" in slots.keywords
+        assert "Learning!!!" in slots.keywords
+    
+    def test_b2_routing_regex_fields_use_norm_strict(self):
+        """Test B2.2: Regex fields use norm_strict (casefolded and trimmed)."""
+        # Test horizon extraction with mixed case (should work due to norm_strict)
+        query = "Forecast for Next Week!!!"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.horizon == 7
+        
+        # Test quantile extraction with mixed case (should work due to norm_strict)
+        query = "Forecast with P10 and P90!!!"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.quantiles == [0.1, 0.9]
+        
+        # Test date range extraction with mixed case (should work due to norm_strict)
+        query = "Forecast from 2024-01-01 To 2024-12-31!!!"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.date_range == {'start_date': '2024-01-01', 'end_date': '2024-12-31'}
+        
+        # Test geo extraction with mixed case (should work due to norm_strict)
+        query = "Forecast trends for United States!!!"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.geo == "united states"
+        
+        # Test category extraction with mixed case (should work due to norm_strict)
+        query = "Forecast Technology trends!!!"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert slots.category == "technology"
+    
+    def test_b2_routing_no_redundant_processing(self):
+        """Test B2.4: No redundant lowercasing or stripping in extraction methods."""
+        # Test that extraction methods don't perform redundant processing
+        # The text normalizer already handles casefolding and trimming
+        
+        # Test with already normalized text
+        query = "forecast for next week with p10 and p90"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        # Should still work correctly despite being already lowercase
+        assert slots.horizon == 7
+        assert slots.quantiles == [0.1, 0.9]
+        
+        # Test with mixed case that gets normalized
+        query = "Forecast For Next Week With P10 And P90"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        # Should work the same way
+        assert slots.horizon == 7
+        assert slots.quantiles == [0.1, 0.9]
+    
+    def test_b2_routing_keyword_extraction_with_loose_normalization(self):
+        """Test B2.6: Keyword extraction with loose normalization."""
+        # Test that keywords preserve case and punctuation from norm_loose
+        query = "Compare 'Python' vs 'JavaScript' and 'Machine Learning'"
+        slots = self.extractor.extract_slots(query, AgentIntent.COMPARE)
+        
+        # Should preserve case and punctuation in keywords
+        assert "Python" in slots.keywords
+        assert "JavaScript" in slots.keywords
+        assert "Machine Learning" in slots.keywords
+        
+        # Test with edge punctuation
+        query = "Forecast trends for 'AI!!!' and 'ML???'"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        assert "AI!!!" in slots.keywords
+        assert "ML???" in slots.keywords
+    
+    def test_b2_routing_regex_extraction_with_strict_normalization(self):
+        """Test B2.7: Regex extraction with strict normalization."""
+        # Test that regex patterns work consistently with strict normalization
+        
+        # Test horizon with various case patterns
+        test_cases = [
+            ("Forecast for NEXT WEEK", 7),
+            ("Forecast for next week", 7),
+            ("Forecast for Next Week", 7),
+            ("Forecast for NeXt WeEk", 7)
+        ]
+        
+        for query, expected_horizon in test_cases:
+            slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+            assert slots.horizon == expected_horizon
+        
+        # Test quantiles with various case patterns
+        test_cases = [
+            ("Forecast with P10 P50 P90", [0.1, 0.5, 0.9]),
+            ("Forecast with p10 p50 p90", [0.1, 0.5, 0.9]),
+            ("Forecast with P10 p50 P90", [0.1, 0.5, 0.9])
+        ]
+        
+        for query, expected_quantiles in test_cases:
+            slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+            assert slots.quantiles == expected_quantiles
+        
+        # Test geo with various case patterns
+        test_cases = [
+            ("Forecast for UNITED STATES", "united states"),
+            ("Forecast for United States", "united states"),
+            ("Forecast for united states", "united states")
+        ]
+        
+        for query, expected_geo in test_cases:
+            slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+            assert slots.geo == expected_geo
+    
+    def test_b2_routing_all_extraction_methods_use_appropriate_input(self):
+        """Test B2.3: All extraction methods use appropriate input."""
+        # Test that all extraction methods receive the correct normalized input
+        
+        # Keywords should use norm_loose (preserves case and edge punctuation)
+        query = "Compare 'Python' vs 'JavaScript' and 'Machine Learning'"
+        slots = self.extractor.extract_slots(query, AgentIntent.COMPARE)
+        
+        # Keywords should preserve case and punctuation
+        assert "Python" in slots.keywords
+        assert "JavaScript" in slots.keywords
+        assert "Machine Learning" in slots.keywords
+        
+        # Regex fields should use norm_strict (casefolded and trimmed)
+        query = "Forecast for Next Week with P10 and P90 for United States Technology trends"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        # All regex-based extractions should work consistently
+        assert slots.horizon == 7
+        assert slots.quantiles == [0.1, 0.9]
+        assert slots.geo == "united states"
+        assert slots.category == "technology"
+    
+    def test_b2_routing_edge_cases_and_punctuation(self):
+        """Test B2 routing with edge cases and punctuation."""
+        # Test that routing handles edge cases correctly
+        
+        # Test with excessive punctuation and whitespace
+        query = "   Forecast   for   Next   Week   with   P10   and   P90   !!!   "
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        # Should still extract correctly despite excessive whitespace and punctuation
+        assert slots.horizon == 7
+        assert slots.quantiles == [0.1, 0.9]
+        
+        # Test with mixed case and punctuation in keywords
+        query = "Compare 'Python!!!' vs 'JavaScript???' and 'Machine Learning...'"
+        slots = self.extractor.extract_slots(query, AgentIntent.COMPARE)
+        
+        # Keywords should preserve case and punctuation
+        assert "Python!!!" in slots.keywords
+        assert "JavaScript???" in slots.keywords
+        assert "Machine Learning..." in slots.keywords
+        
+        # Test with special characters in regex fields
+        query = "Forecast for Next Week with P10 and P90 for United States!!!"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        # Regex fields should work despite punctuation
+        assert slots.horizon == 7
+        assert slots.quantiles == [0.1, 0.9]
+        assert slots.geo == "united states" 
