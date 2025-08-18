@@ -47,7 +47,7 @@ class Config:
     LOG_FORMAT = os.environ.get('LOG_FORMAT', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     
     # CORS Configuration
-    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',')
+    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:4200,http://127.0.0.1:4200,http://localhost:3000,http://127.0.0.1:3000').split(',')
     
     # Development Server
     HOST = os.environ.get('HOST', '0.0.0.0')
