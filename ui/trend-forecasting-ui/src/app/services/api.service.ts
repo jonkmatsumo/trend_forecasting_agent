@@ -1,16 +1,39 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
+import { Observable, catchError } from 'rxjs';
 import { ApiRequest, ApiResponse } from '../models/api.models';
+import { ErrorHandlerService } from './error-handler.service';
+import { ValidationService } from './validation.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ApiService {
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private errorHandler: ErrorHandlerService,
+    private validationService: ValidationService
+  ) {}
 
   sendRequest(request: ApiRequest): Observable<ApiResponse> {
     const startTime = Date.now();
+    
+    // Validate request before sending
+    const validationErrors = this.validationService.validateApiRequest(request);
+    if (validationErrors.length > 0) {
+      this.errorHandler.handleValidationError(validationErrors, 'Invalid API Request');
+      return new Observable(observer => {
+        const apiResponse: ApiResponse = {
+          status: 400,
+          statusText: 'Bad Request',
+          data: { errors: validationErrors },
+          headers: {},
+          responseTime: Date.now() - startTime
+        };
+        observer.next(apiResponse);
+        observer.complete();
+      });
+    }
     
     const options = {
       headers: new HttpHeaders(request.headers),
@@ -36,31 +59,41 @@ export class ApiService {
         throw new Error(`Unsupported HTTP method: ${request.method}`);
     }
 
-    return new Observable(observer => {
-      httpCall.subscribe({
-        next: (response) => {
-          const apiResponse: ApiResponse = {
-            status: response.status,
-            statusText: response.statusText,
-            data: response.body,
-            headers: response.headers,
-            responseTime: Date.now() - startTime
-          };
-          observer.next(apiResponse);
-          observer.complete();
-        },
-        error: (error) => {
-          const apiResponse: ApiResponse = {
-            status: error.status || 0,
-            statusText: error.statusText || 'Unknown Error',
-            data: error.error || error.message,
-            headers: error.headers,
-            responseTime: Date.now() - startTime
-          };
-          observer.next(apiResponse);
-          observer.complete();
-        }
-      });
-    });
+    return this.errorHandler.createRetryableRequest(
+      new Observable(observer => {
+        httpCall.subscribe({
+          next: (response) => {
+            const apiResponse: ApiResponse = {
+              status: response.status,
+              statusText: response.statusText,
+              data: response.body,
+              headers: response.headers,
+              responseTime: Date.now() - startTime
+            };
+            observer.next(apiResponse);
+            observer.complete();
+          },
+          error: (error: HttpErrorResponse) => {
+            const apiResponse: ApiResponse = {
+              status: error.status || 0,
+              statusText: error.statusText || 'Unknown Error',
+              data: error.error || error.message,
+              headers: error.headers,
+              responseTime: Date.now() - startTime
+            };
+            observer.next(apiResponse);
+            observer.complete();
+          }
+        });
+      }).pipe(
+        catchError((error: HttpErrorResponse) => 
+          this.errorHandler.handleHttpError(error, {
+            customMessage: 'API request failed',
+            retryAttempts: 2
+          })
+        )
+      ),
+      { retryAttempts: 2, customMessage: 'API request failed' }
+    );
   }
 } 

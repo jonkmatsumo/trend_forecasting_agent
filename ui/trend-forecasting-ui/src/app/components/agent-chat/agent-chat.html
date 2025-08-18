@@ -26,12 +26,15 @@
       </div>
     </div>
 
-    <div *ngIf="isLoading" class="message message--agent">
+    <div *ngIf="loadingService.isLoading('agent-chat')" class="message message--agent">
       <div class="message-content">
         <div class="typing-indicator">
           <span></span>
           <span></span>
           <span></span>
+        </div>
+        <div class="loading-message">
+          {{ loadingService.getLoadingState('agent-chat')?.message || 'Processing...' }}
         </div>
       </div>
     </div>
@@ -56,10 +59,10 @@
     
     <button mat-raised-button 
             color="primary"
-            [disabled]="queryControl.invalid || isLoading"
+            [disabled]="queryControl.invalid || loadingService.isLoading('agent-chat')"
             (click)="sendMessage()">
       <mat-icon>send</mat-icon>
-      Send
+      {{ loadingService.isLoading('agent-chat') ? 'Sending...' : 'Send' }}
     </button>
   </div>
 </div>

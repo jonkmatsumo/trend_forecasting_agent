@@ -9,6 +9,10 @@ import { CommonModule } from '@angular/common';
 import { ApiService } from '../../services/api.service';
 import { ApiTestService, ApiTestResult, ApiTestSuite } from '../../services/api-test.service';
 import { ApiEndpoint, ApiRequest, ApiResponse } from '../../models/api.models';
+import { ErrorHandlerService } from '../../services/error-handler.service';
+import { ValidationService } from '../../services/validation.service';
+import { LoadingService } from '../../services/loading.service';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-api-tester',
@@ -131,7 +135,11 @@ export class ApiTesterComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private apiService: ApiService,
-    private apiTestService: ApiTestService
+    private apiTestService: ApiTestService,
+    private errorHandler: ErrorHandlerService,
+    private validationService: ValidationService,
+    private loadingService: LoadingService,
+    private notificationService: NotificationService
   ) {
     this.requestForm = this.fb.group({
       baseUrl: ['http://localhost:5000', Validators.required],
@@ -158,26 +166,55 @@ export class ApiTesterComponent implements OnInit {
   async sendRequest(): Promise<void> {
     if (this.requestForm.invalid || this.isLoading) return;
 
-    this.isLoading = true;
-    this.error = null;
-    this.response = null;
-
-    try {
-      const request: ApiRequest = {
-        url: this.requestForm.value.baseUrl + this.requestForm.value.path,
-        method: this.requestForm.value.method,
-        headers: JSON.parse(this.requestForm.value.headers),
-        body: this.requestForm.value.method !== 'GET' ? JSON.parse(this.requestForm.value.body) : undefined
-      };
-
-      const result = await this.apiService.sendRequest(request).toPromise();
-      this.response = result || null;
-    } catch (error: any) {
-      this.error = error.message || 'An error occurred';
-      console.error('API request error:', error);
-    } finally {
-      this.isLoading = false;
+    // Validate form before sending
+    if (!this.validationService.validateForm(this.requestForm)) {
+      const errors = this.validationService.getFormErrors(this.requestForm);
+      this.errorHandler.handleValidationError(errors, 'Invalid Form Data');
+      return;
     }
+
+    // Validate JSON fields
+    try {
+      JSON.parse(this.requestForm.value.headers);
+      if (this.requestForm.value.method !== 'GET') {
+        JSON.parse(this.requestForm.value.body);
+      }
+    } catch (error) {
+      this.errorHandler.handleGenericError(error, 'Invalid JSON Format');
+      return;
+    }
+
+    await this.loadingService.withLoading(
+      'api-request',
+      async () => {
+        this.error = null;
+        this.response = null;
+
+        const request: ApiRequest = {
+          url: this.requestForm.value.baseUrl + this.requestForm.value.path,
+          method: this.requestForm.value.method,
+          headers: JSON.parse(this.requestForm.value.headers),
+          body: this.requestForm.value.method !== 'GET' ? JSON.parse(this.requestForm.value.body) : undefined
+        };
+
+        const result = await this.apiService.sendRequest(request).toPromise();
+        this.response = result || null;
+        
+        if (result && result.status >= 200 && result.status < 300) {
+          this.notificationService.success('API request completed successfully');
+        } else {
+          this.notificationService.warning(`Request completed with status ${result?.status}`);
+        }
+      },
+      {
+        message: 'Sending API request...',
+        showProgress: true,
+        timeout: 30000
+      }
+    ).catch(error => {
+      this.error = error.message || 'An error occurred';
+      this.errorHandler.handleGenericError(error, 'API Request Error');
+    });
   }
 
   formatJson(json: any): string {
@@ -190,39 +227,61 @@ export class ApiTesterComponent implements OnInit {
 
   // Backend Integration Testing Methods
   runIntegrationTests(): void {
-    this.isRunningIntegrationTests = true;
-    this.integrationTestResults = null;
-
-    this.apiTestService.testAllEndpoints().subscribe({
+    this.loadingService.withLoadingObservable(
+      'integration-tests',
+      this.apiTestService.testAllEndpoints(),
+      {
+        message: 'Running integration tests...',
+        showProgress: true,
+        timeout: 60000
+      }
+    ).subscribe({
       next: (results) => {
         this.integrationTestResults = results;
-        this.isRunningIntegrationTests = false;
+        this.notificationService.success('Integration tests completed');
       },
       error: (error) => {
-        console.error('Integration test error:', error);
-        this.isRunningIntegrationTests = false;
+        this.errorHandler.handleGenericError(error, 'Integration Test Error');
       }
     });
   }
 
   testCorsConfiguration(): void {
-    this.apiTestService.testCorsConfiguration().subscribe({
+    this.loadingService.withLoadingObservable(
+      'cors-test',
+      this.apiTestService.testCorsConfiguration(),
+      {
+        message: 'Testing CORS configuration...',
+        showProgress: false,
+        timeout: 10000
+      }
+    ).subscribe({
       next: (result) => {
         this.corsTestResult = result;
+        this.notificationService.success('CORS test completed');
       },
       error: (error) => {
-        console.error('CORS test error:', error);
+        this.errorHandler.handleGenericError(error, 'CORS Test Error');
       }
     });
   }
 
   testProxyConfiguration(): void {
-    this.apiTestService.testProxyConfiguration().subscribe({
+    this.loadingService.withLoadingObservable(
+      'proxy-test',
+      this.apiTestService.testProxyConfiguration(),
+      {
+        message: 'Testing proxy configuration...',
+        showProgress: false,
+        timeout: 10000
+      }
+    ).subscribe({
       next: (results) => {
         this.proxyTestResults = results;
+        this.notificationService.success('Proxy test completed');
       },
       error: (error) => {
-        console.error('Proxy test error:', error);
+        this.errorHandler.handleGenericError(error, 'Proxy Test Error');
       }
     });
   }

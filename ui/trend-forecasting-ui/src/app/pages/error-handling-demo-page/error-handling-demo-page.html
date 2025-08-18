@@ -1,0 +1,299 @@
+<div class="error-handling-demo-container">
+  <div class="demo-header">
+    <h1>Phase 8: Error Handling & Validation Demo</h1>
+    <p>Comprehensive demonstration of form validation, error handling, loading states, and skeleton screens</p>
+  </div>
+
+  <mat-tab-group>
+    <!-- Form Validation Tab -->
+    <mat-tab label="Form Validation">
+      <div class="tab-content">
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>Form Validation Demo</mat-card-title>
+            <mat-card-subtitle>Test various validation rules and error handling</mat-card-subtitle>
+          </mat-card-header>
+          
+          <mat-card-content>
+            <form [formGroup]="validationForm" class="validation-form">
+              <div class="form-grid">
+                <mat-form-field appearance="outline">
+                  <mat-label>Name</mat-label>
+                  <input matInput formControlName="name" placeholder="Enter your name">
+                  <mat-error *ngIf="validationForm.get('name')?.hasError('required')">
+                    Name is required
+                  </mat-error>
+                  <mat-error *ngIf="validationForm.get('name')?.hasError('minlength')">
+                    Name must be at least 2 characters
+                  </mat-error>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Email</mat-label>
+                  <input matInput formControlName="email" placeholder="Enter your email">
+                  <mat-error *ngIf="validationForm.get('email')?.hasError('required')">
+                    Email is required
+                  </mat-error>
+                  <mat-error *ngIf="validationForm.get('email')?.hasError('email')">
+                    Please enter a valid email
+                  </mat-error>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>URL</mat-label>
+                  <input matInput formControlName="url" placeholder="https://example.com">
+                  <mat-error *ngIf="validationForm.get('url')?.hasError('invalidUrl')">
+                    Please enter a valid URL
+                  </mat-error>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>JSON Data</mat-label>
+                  <textarea matInput formControlName="json" rows="3" placeholder='{"key": "value"}'></textarea>
+                  <mat-error *ngIf="validationForm.get('json')?.hasError('invalidJson')">
+                    Please enter valid JSON
+                  </mat-error>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Number (1-100)</mat-label>
+                  <input matInput formControlName="number" type="number" placeholder="Enter a number">
+                  <mat-error *ngIf="validationForm.get('number')?.hasError('outOfRange')">
+                    Number must be between 1 and 100
+                  </mat-error>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Keywords</mat-label>
+                  <input matInput formControlName="keywords" placeholder="keyword1, keyword2, keyword3">
+                  <mat-error *ngIf="validationForm.get('keywords')?.hasError('invalidKeywords')">
+                    Please enter valid keywords
+                  </mat-error>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Timeframe</mat-label>
+                  <mat-select formControlName="timeframe">
+                    <mat-option value="now 1-H">Last Hour</mat-option>
+                    <mat-option value="now 4-H">Last 4 Hours</mat-option>
+                    <mat-option value="now 1-d">Last Day</mat-option>
+                    <mat-option value="today 1-m">Last Month</mat-option>
+                    <mat-option value="today 12-m">Last Year</mat-option>
+                  </mat-select>
+                  <mat-error *ngIf="validationForm.get('timeframe')?.hasError('invalidTimeframe')">
+                    Please select a valid timeframe
+                  </mat-error>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Model Type</mat-label>
+                  <mat-select formControlName="modelType">
+                    <mat-option value="prophet">Prophet</mat-option>
+                    <mat-option value="arima">ARIMA</mat-option>
+                    <mat-option value="lstm">LSTM</mat-option>
+                    <mat-option value="transformer">Transformer</mat-option>
+                  </mat-select>
+                  <mat-error *ngIf="validationForm.get('modelType')?.hasError('invalidModelType')">
+                    Please select a valid model type
+                  </mat-error>
+                </mat-form-field>
+              </div>
+
+              <div class="form-actions">
+                <button mat-raised-button color="primary" (click)="testFormValidation()">
+                  <mat-icon>check_circle</mat-icon>
+                  Test Validation
+                </button>
+                <button mat-button (click)="resetForm()">
+                  <mat-icon>refresh</mat-icon>
+                  Reset Form
+                </button>
+              </div>
+
+              <div *ngIf="validationErrors.length > 0" class="validation-errors">
+                <h4>Validation Errors:</h4>
+                <ul>
+                  <li *ngFor="let error of validationErrors">
+                    <strong>{{ error.field }}:</strong> {{ error.message }}
+                  </li>
+                </ul>
+              </div>
+            </form>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </mat-tab>
+
+    <!-- Error Handling Tab -->
+    <mat-tab label="Error Handling">
+      <div class="tab-content">
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>Error Handling Demo</mat-card-title>
+            <mat-card-subtitle>Test various error scenarios and handling mechanisms</mat-card-subtitle>
+          </mat-card-header>
+          
+          <mat-card-content>
+            <div class="error-demo-section">
+              <h3>HTTP Error Simulation</h3>
+              <div class="error-buttons">
+                <button mat-raised-button color="warn" (click)="testHttpError(400)">400 Bad Request</button>
+                <button mat-raised-button color="warn" (click)="testHttpError(401)">401 Unauthorized</button>
+                <button mat-raised-button color="warn" (click)="testHttpError(403)">403 Forbidden</button>
+                <button mat-raised-button color="warn" (click)="testHttpError(404)">404 Not Found</button>
+                <button mat-raised-button color="warn" (click)="testHttpError(408)">408 Timeout</button>
+                <button mat-raised-button color="warn" (click)="testHttpError(429)">429 Rate Limit</button>
+                <button mat-raised-button color="warn" (click)="testHttpError(500)">500 Server Error</button>
+                <button mat-raised-button color="warn" (click)="testHttpError(502)">502 Bad Gateway</button>
+                <button mat-raised-button color="warn" (click)="testHttpError(503)">503 Service Unavailable</button>
+                <button mat-raised-button color="warn" (click)="testHttpError(504)">504 Gateway Timeout</button>
+              </div>
+            </div>
+
+            <mat-divider></mat-divider>
+
+            <div class="error-demo-section">
+              <h3>Other Error Types</h3>
+              <div class="error-buttons">
+                <button mat-raised-button color="accent" (click)="testValidationError()">
+                  Validation Error
+                </button>
+                <button mat-raised-button color="accent" (click)="testGenericError()">
+                  Generic Error
+                </button>
+              </div>
+            </div>
+
+            <mat-divider></mat-divider>
+
+            <div class="error-demo-section">
+              <h3>Notification Demo</h3>
+              <div class="error-buttons">
+                <button mat-raised-button color="primary" (click)="showSuccessNotification()">
+                  Success Notification
+                </button>
+                <button mat-raised-button color="warn" (click)="showErrorNotification()">
+                  Error Notification
+                </button>
+                <button mat-raised-button color="accent" (click)="showWarningNotification()">
+                  Warning Notification
+                </button>
+                <button mat-raised-button color="primary" (click)="showInfoNotification()">
+                  Info Notification
+                </button>
+              </div>
+            </div>
+
+            <mat-divider></mat-divider>
+
+            <div class="error-results">
+              <div class="results-header">
+                <h3>Error Test Results</h3>
+                <button mat-button (click)="clearErrorResults()">
+                  <mat-icon>clear</mat-icon>
+                  Clear Results
+                </button>
+              </div>
+              
+              <div class="results-list">
+                <div *ngFor="let result of errorDemoResults" class="result-item">
+                  <div class="result-header">
+                    <span class="result-type">{{ result.type }}</span>
+                    <span class="result-time">{{ result.timestamp | date:'shortTime' }}</span>
+                  </div>
+                  <div class="result-content">
+                    <pre>{{ result.error || result.errors | json }}</pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </mat-tab>
+
+    <!-- Loading States Tab -->
+    <mat-tab label="Loading States">
+      <div class="tab-content">
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>Loading States Demo</mat-card-title>
+            <mat-card-subtitle>Test various loading indicators and skeleton screens</mat-card-subtitle>
+          </mat-card-header>
+          
+          <mat-card-content>
+            <div class="loading-demo-section">
+              <h3>Progress Loading</h3>
+              <div class="loading-buttons">
+                <button mat-raised-button color="primary" (click)="testLoadingState('demo-1', 2000)">
+                  Quick Load (2s)
+                </button>
+                <button mat-raised-button color="primary" (click)="testLoadingState('demo-2', 5000)">
+                  Medium Load (5s)
+                </button>
+                <button mat-raised-button color="primary" (click)="testLoadingState('demo-3', 10000)">
+                  Long Load (10s)
+                </button>
+              </div>
+            </div>
+
+            <mat-divider></mat-divider>
+
+            <div class="loading-demo-section">
+              <h3>Skeleton Loading</h3>
+              <div class="skeleton-demo">
+                <button mat-raised-button color="accent" (click)="testSkeletonLoading()">
+                  <mat-icon>refresh</mat-icon>
+                  Reload with Skeleton
+                </button>
+                
+                <div class="skeleton-examples">
+                  <div class="skeleton-example">
+                    <h4>Text Skeleton</h4>
+                    <app-skeleton-loader [config]="{ type: 'text', lines: 3 }" [count]="1"></app-skeleton-loader>
+                  </div>
+                  
+                  <div class="skeleton-example">
+                    <h4>Card Skeleton</h4>
+                    <app-skeleton-loader [config]="{ type: 'card' }" [count]="2"></app-skeleton-loader>
+                  </div>
+                  
+                  <div class="skeleton-example">
+                    <h4>List Item Skeleton</h4>
+                    <app-skeleton-loader [config]="{ type: 'list-item' }" [count]="3"></app-skeleton-loader>
+                  </div>
+                  
+                  <div class="skeleton-example">
+                    <h4>Table Row Skeleton</h4>
+                    <app-skeleton-loader [config]="{ type: 'table-row' }" [count]="4"></app-skeleton-loader>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <mat-divider></mat-divider>
+
+            <div class="loading-demo-section">
+              <h3>Data Loading Simulation</h3>
+              <div class="data-demo">
+                <div *ngIf="loadingService.isLoading('skeleton-demo')" class="loading-data">
+                  <app-skeleton-loader [config]="{ type: 'list-item' }" [count]="3"></app-skeleton-loader>
+                </div>
+                
+                <div *ngIf="!loadingService.isLoading('skeleton-demo')" class="loaded-data">
+                  <div *ngFor="let item of skeletonDemoData" class="data-item">
+                    <h4>{{ item.name }}</h4>
+                    <p>{{ item.description }}</p>
+                    <span class="status" [ngClass]="'status--' + item.status.toLowerCase()">
+                      {{ item.status }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div> 

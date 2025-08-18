@@ -1,0 +1,64 @@
+<div class="skeleton-container">
+  <div 
+    *ngFor="let item of skeletonItems; trackBy: trackByIndex" 
+    [class]="getSkeletonClass()"
+    [style.width]="item.width"
+    [style.height]="item.height"
+    [style.border-radius]="item.borderRadius"
+  >
+    <!-- Text skeleton -->
+    <div *ngIf="item.type === 'text'" class="skeleton-text">
+      <div 
+        *ngFor="let width of getLineWidths(); trackBy: trackByIndex"
+        class="skeleton-line"
+        [style.width]="width"
+        [style.height]="item.lineHeight"
+        [style.margin-bottom]="item.spacing"
+      ></div>
+    </div>
+
+    <!-- Card skeleton -->
+    <div *ngIf="item.type === 'card'" class="skeleton-card">
+      <div class="skeleton-card-header">
+        <div class="skeleton-circle" [style.width]="'40px'" [style.height]="'40px'"></div>
+        <div class="skeleton-text">
+          <div class="skeleton-line" style="width: 60%; height: 16px; margin-bottom: 8px;"></div>
+          <div class="skeleton-line" style="width: 40%; height: 14px;"></div>
+        </div>
+      </div>
+      <div class="skeleton-card-content">
+        <div 
+          *ngFor="let width of getLineWidths(); trackBy: trackByIndex"
+          class="skeleton-line"
+          [style.width]="width"
+          [style.height]="item.lineHeight"
+          [style.margin-bottom]="item.spacing"
+        ></div>
+      </div>
+      <div class="skeleton-card-footer">
+        <div class="skeleton-line" style="width: 30%; height: 12px;"></div>
+        <div class="skeleton-line" style="width: 20%; height: 12px;"></div>
+      </div>
+    </div>
+
+    <!-- List item skeleton -->
+    <div *ngIf="item.type === 'list-item'" class="skeleton-list-item">
+      <div class="skeleton-circle" [style.width]="'32px'" [style.height]="'32px'"></div>
+      <div class="skeleton-text">
+        <div class="skeleton-line" style="width: 70%; height: 16px; margin-bottom: 4px;"></div>
+        <div class="skeleton-line" style="width: 50%; height: 14px;"></div>
+      </div>
+    </div>
+
+    <!-- Table row skeleton -->
+    <div *ngIf="item.type === 'table-row'" class="skeleton-table-row">
+      <div class="skeleton-line" style="width: 25%; height: 16px;"></div>
+      <div class="skeleton-line" style="width: 35%; height: 16px;"></div>
+      <div class="skeleton-line" style="width: 20%; height: 16px;"></div>
+      <div class="skeleton-line" style="width: 20%; height: 16px;"></div>
+    </div>
+
+    <!-- Simple rectangle or circle -->
+    <div *ngIf="item.type === 'rectangle' || item.type === 'circle'" class="skeleton-shape"></div>
+  </div>
+</div> 

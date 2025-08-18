@@ -61,10 +61,10 @@
         <div class="form-actions">
           <button mat-raised-button 
                   color="primary"
-                  [disabled]="requestForm.invalid || isLoading"
+                  [disabled]="requestForm.invalid || loadingService.isLoading('api-request')"
                   (click)="sendRequest()">
             <mat-icon>send</mat-icon>
-            Send Request
+            {{ loadingService.isLoading('api-request') ? 'Sending...' : 'Send Request' }}
           </button>
         </div>
       </form>

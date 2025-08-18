@@ -7,6 +7,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
 import { AgentService } from '../../services/agent.service';
 import { ChatMessage } from '../../models/agent.models';
+import { ErrorHandlerService } from '../../services/error-handler.service';
+import { ValidationService } from '../../services/validation.service';
+import { LoadingService } from '../../services/loading.service';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-agent-chat',
@@ -30,7 +34,13 @@ export class AgentChatComponent implements OnInit {
   isLoading = false;
   sessionId = this.generateSessionId();
 
-  constructor(private agentService: AgentService) {}
+  constructor(
+    private agentService: AgentService,
+    private errorHandler: ErrorHandlerService,
+    private validationService: ValidationService,
+    private loadingService: LoadingService,
+    private notificationService: NotificationService
+  ) {}
 
   ngOnInit(): void {
     this.addSystemMessage('Hello! I\'m your trend forecasting assistant. Ask me anything about trends, forecasts, or model training.');
@@ -41,27 +51,42 @@ export class AgentChatComponent implements OnInit {
 
     const query = this.queryControl.value;
     if (!query) return;
+
+    // Validate the message
+    const validationErrors = this.validationService.validateAgentRequest({ message: query });
+    if (validationErrors.length > 0) {
+      this.errorHandler.handleValidationError(validationErrors, 'Invalid Message');
+      return;
+    }
     
     this.addUserMessage(query);
     this.queryControl.reset();
-    this.isLoading = true;
 
-    try {
-      const response = await this.agentService.askAgent({
-        message: query,
-        context: this.sessionId
-      }).toPromise();
+    // Use loading service for better UX
+    await this.loadingService.withLoading(
+      'agent-chat',
+      async () => {
+        const response = await this.agentService.askAgent({
+          message: query,
+          context: this.sessionId
+        }).toPromise();
 
-      if (response) {
-        this.addAgentMessage(response);
+        if (response) {
+          this.addAgentMessage(response);
+          this.notificationService.success('Message sent successfully');
+        }
+      },
+      {
+        message: 'Processing your request...',
+        showProgress: true,
+        timeout: 30000
       }
-    } catch (error) {
+    ).catch(error => {
       this.addErrorMessage('Sorry, I encountered an error. Please try again.');
-      console.error('Agent error:', error);
-    } finally {
-      this.isLoading = false;
-      this.scrollToBottom();
-    }
+      this.errorHandler.handleGenericError(error, 'Agent Chat Error');
+    });
+
+    this.scrollToBottom();
   }
 
   private addUserMessage(text: string): void {

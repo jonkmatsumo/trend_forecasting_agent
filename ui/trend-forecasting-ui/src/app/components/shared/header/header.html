@@ -29,6 +29,14 @@
         <mat-icon>palette</mat-icon>
         Styling Demo
       </a>
+      
+      <a mat-button 
+         routerLink="/error-handling-demo" 
+         routerLinkActive="active"
+         [class.active]="isActive('/error-handling-demo')">
+        <mat-icon>error_outline</mat-icon>
+        Error Handling Demo
+      </a>
     </nav>
   </div>
 </mat-toolbar>
