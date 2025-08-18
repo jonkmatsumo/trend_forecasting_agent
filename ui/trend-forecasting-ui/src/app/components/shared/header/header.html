@@ -37,6 +37,14 @@
         <mat-icon>error_outline</mat-icon>
         Error Handling Demo
       </a>
+      
+      <a mat-button 
+         routerLink="/performance" 
+         routerLinkActive="active"
+         [class.active]="isActive('/performance')">
+        <mat-icon>speed</mat-icon>
+        Performance
+      </a>
     </nav>
   </div>
 </mat-toolbar>

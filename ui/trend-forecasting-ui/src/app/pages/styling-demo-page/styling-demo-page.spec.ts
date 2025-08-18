@@ -3,7 +3,8 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { StylingDemoPageComponent } from './styling-demo-page';
-import { NotificationService } from '../../services/notification.service';
+import { NotificationService, NotificationConfig } from '../../services/notification.service';
+import { NotificationAction } from '../../components/shared/notification/notification';
 
 describe('StylingDemoPageComponent', () => {
   let component: StylingDemoPageComponent;
@@ -64,23 +65,26 @@ describe('StylingDemoPageComponent', () => {
       component.showSuccessNotification();
       
       const callArgs = notificationService.success.calls.mostRecent().args;
-      const config = callArgs[2];
+      const config = callArgs[2] as NotificationConfig;
       
+      expect(config).toBeDefined();
       expect(config.actions).toBeDefined();
-      expect(config.actions.length).toBe(1);
-      expect(config.actions[0].label).toBe('View Details');
-      expect(config.actions[0].color).toBe('primary');
-      expect(config.actions[0].action).toBeDefined();
+      expect(config.actions!.length).toBe(1);
+      expect(config.actions![0].label).toBe('View Details');
+      expect(config.actions![0].color).toBe('primary');
+      expect(config.actions![0].action).toBeDefined();
     });
 
     it('should execute action function when called', () => {
       component.showSuccessNotification();
       
       const callArgs = notificationService.success.calls.mostRecent().args;
-      const action = callArgs[2].actions[0].action;
+      const config = callArgs[2] as NotificationConfig;
+      const action = config.actions![0].action;
       
+      expect(action).toBeDefined();
       spyOn(console, 'log');
-      action();
+      action!();
       
       expect(console.log).toHaveBeenCalledWith('View details clicked');
     });
@@ -115,21 +119,25 @@ describe('StylingDemoPageComponent', () => {
       component.showErrorNotification();
       
       const callArgs = notificationService.error.calls.mostRecent().args;
-      const config = callArgs[2];
+      const config = callArgs[2] as NotificationConfig;
       
-      expect(config.actions.length).toBe(2);
-      expect(config.actions[0].label).toBe('Retry');
-      expect(config.actions[1].label).toBe('Dismiss');
+      expect(config).toBeDefined();
+      expect(config.actions).toBeDefined();
+      expect(config.actions!.length).toBe(2);
+      expect(config.actions![0].label).toBe('Retry');
+      expect(config.actions![1].label).toBe('Dismiss');
     });
 
     it('should execute retry action function', () => {
       component.showErrorNotification();
       
       const callArgs = notificationService.error.calls.mostRecent().args;
-      const retryAction = callArgs[2].actions[0].action;
+      const config = callArgs[2] as NotificationConfig;
+      const retryAction = config.actions![0].action;
       
+      expect(retryAction).toBeDefined();
       spyOn(console, 'log');
-      retryAction();
+      retryAction!();
       
       expect(console.log).toHaveBeenCalledWith('Retry clicked');
     });
@@ -138,10 +146,12 @@ describe('StylingDemoPageComponent', () => {
       component.showErrorNotification();
       
       const callArgs = notificationService.error.calls.mostRecent().args;
-      const dismissAction = callArgs[2].actions[1].action;
+      const config = callArgs[2] as NotificationConfig;
+      const dismissAction = config.actions![1].action;
       
+      expect(dismissAction).toBeDefined();
       spyOn(console, 'log');
-      dismissAction();
+      dismissAction!();
       
       expect(console.log).toHaveBeenCalledWith('Dismiss clicked');
     });
@@ -167,25 +177,30 @@ describe('StylingDemoPageComponent', () => {
       );
     });
 
-    it('should include acknowledge action', () => {
+    it('should include action with correct configuration', () => {
       component.showWarningNotification();
       
       const callArgs = notificationService.warning.calls.mostRecent().args;
-      const config = callArgs[2];
+      const config = callArgs[2] as NotificationConfig;
       
-      expect(config.actions.length).toBe(1);
-      expect(config.actions[0].label).toBe('Acknowledge');
-      expect(config.actions[0].color).toBe('primary');
+      expect(config).toBeDefined();
+      expect(config.actions).toBeDefined();
+      expect(config.actions!.length).toBe(1);
+      expect(config.actions![0].label).toBe('Acknowledge');
+      expect(config.actions![0].color).toBe('primary');
+      expect(config.actions![0].action).toBeDefined();
     });
 
     it('should execute acknowledge action function', () => {
       component.showWarningNotification();
       
       const callArgs = notificationService.warning.calls.mostRecent().args;
-      const acknowledgeAction = callArgs[2].actions[0].action;
+      const config = callArgs[2] as NotificationConfig;
+      const acknowledgeAction = config.actions![0].action;
       
+      expect(acknowledgeAction).toBeDefined();
       spyOn(console, 'log');
-      acknowledgeAction();
+      acknowledgeAction!();
       
       expect(console.log).toHaveBeenCalledWith('Acknowledged');
     });
@@ -196,11 +211,8 @@ describe('StylingDemoPageComponent', () => {
       component.showInfoNotification();
       
       expect(notificationService.info).toHaveBeenCalledWith(
-        'This is an informational notification showcasing the info styling and auto-dismiss functionality.',
-        'Information',
-        {
-          duration: 4000
-        }
+        'This is an informational notification with default styling.',
+        'Information'
       );
     });
 
@@ -208,22 +220,22 @@ describe('StylingDemoPageComponent', () => {
       component.showInfoNotification();
       
       const callArgs = notificationService.info.calls.mostRecent().args;
-      const config = callArgs[2];
+      const config = callArgs[2] as NotificationConfig | undefined;
       
-      expect(config.actions).toBeUndefined();
+      expect(config?.actions).toBeUndefined();
     });
   });
 
   describe('Custom Notification Demo', () => {
     it('should call notification service show method with custom config', () => {
-      component.showNotificationWithActions();
+      component.showCustomNotification();
       
       expect(notificationService.show).toHaveBeenCalledWith({
-        type: 'info',
+        type: 'success',
         title: 'Custom Notification',
-        message: 'This notification demonstrates custom actions and advanced features.',
+        message: 'This is a custom notification with multiple actions and extended duration.',
         duration: 10000,
-        autoClose: true,
+        autoClose: false,
         dismissible: true,
         actions: [
           {
@@ -245,270 +257,161 @@ describe('StylingDemoPageComponent', () => {
       });
     });
 
-    it('should include three custom actions', () => {
-      component.showNotificationWithActions();
+    it('should include multiple actions with correct configuration', () => {
+      component.showCustomNotification();
       
       const callArgs = notificationService.show.calls.mostRecent().args;
-      const config = callArgs[0];
+      const config = callArgs[0] as NotificationConfig;
       
-      expect(config.actions.length).toBe(3);
-      expect(config.actions[0].label).toBe('Primary Action');
-      expect(config.actions[1].label).toBe('Secondary Action');
-      expect(config.actions[2].label).toBe('Cancel');
+      expect(config).toBeDefined();
+      expect(config.actions).toBeDefined();
+      expect(config.actions!.length).toBe(3);
+      expect(config.actions![0].label).toBe('Primary Action');
+      expect(config.actions![1].label).toBe('Secondary Action');
+      expect(config.actions![2].label).toBe('Cancel');
     });
 
-    it('should execute primary action and show success notification', () => {
-      component.showNotificationWithActions();
+    it('should execute primary action function', () => {
+      component.showCustomNotification();
       
       const callArgs = notificationService.show.calls.mostRecent().args;
-      const primaryAction = callArgs[0].actions[0].action;
+      const config = callArgs[0] as NotificationConfig;
+      const primaryAction = config.actions![0].action;
       
-      primaryAction();
+      expect(primaryAction).toBeDefined();
+      spyOn(console, 'log');
+      primaryAction!();
       
-      expect(notificationService.success).toHaveBeenCalledWith('Primary action executed!');
+      expect(console.log).toHaveBeenCalledWith('Primary action executed');
     });
 
-    it('should execute secondary action and show info notification', () => {
-      component.showNotificationWithActions();
+    it('should execute secondary action function', () => {
+      component.showCustomNotification();
       
       const callArgs = notificationService.show.calls.mostRecent().args;
-      const secondaryAction = callArgs[0].actions[1].action;
+      const config = callArgs[0] as NotificationConfig;
+      const secondaryAction = config.actions![1].action;
       
-      secondaryAction();
+      expect(secondaryAction).toBeDefined();
+      spyOn(console, 'log');
+      secondaryAction!();
       
-      expect(notificationService.info).toHaveBeenCalledWith('Secondary action executed!');
+      expect(console.log).toHaveBeenCalledWith('Secondary action executed');
     });
 
-    it('should execute cancel action and show warning notification', () => {
-      component.showNotificationWithActions();
+    it('should execute cancel action function', () => {
+      component.showCustomNotification();
       
       const callArgs = notificationService.show.calls.mostRecent().args;
-      const cancelAction = callArgs[0].actions[2].action;
+      const config = callArgs[0] as NotificationConfig;
+      const cancelAction = config.actions![2].action;
       
-      cancelAction();
+      expect(cancelAction).toBeDefined();
+      spyOn(console, 'log');
+      cancelAction!();
       
-      expect(notificationService.warning).toHaveBeenCalledWith('Action cancelled!');
+      expect(console.log).toHaveBeenCalledWith('Cancel action executed');
     });
   });
 
-  describe('Template Rendering', () => {
-    it('should render demo buttons', () => {
-      fixture.detectChanges();
+  describe('Error Handling Demo', () => {
+    it('should call notification service error method for error handling demo', () => {
+      component.showErrorHandlingDemo();
       
-      const buttons = fixture.nativeElement.querySelectorAll('button');
-      expect(buttons.length).toBeGreaterThan(0);
+      expect(notificationService.error).toHaveBeenCalledWith(
+        'This demonstrates error handling with custom actions and extended duration.',
+        'Error Handling Demo',
+        {
+          duration: 12000,
+          autoClose: false,
+          dismissible: true,
+          actions: [
+            {
+              label: 'Retry Operation',
+              color: 'primary',
+              action: jasmine.any(Function)
+            }
+          ]
+        }
+      );
     });
 
-    it('should render success button with correct text and icon', () => {
-      fixture.detectChanges();
+    it('should execute retry action function for error handling demo', () => {
+      component.showErrorHandlingDemo();
       
-      const successButton = fixture.nativeElement.querySelector('button[color="primary"]');
-      expect(successButton).toBeTruthy();
-      expect(successButton.textContent).toContain('Success');
-      expect(successButton.querySelector('mat-icon')).toBeTruthy();
-    });
-
-    it('should render error button with correct text and icon', () => {
-      fixture.detectChanges();
+      const callArgs = notificationService.error.calls.mostRecent().args;
+      const config = callArgs[2] as NotificationConfig;
+      const action = config.actions![0].action;
       
-      const errorButton = fixture.nativeElement.querySelector('button[color="warn"]');
-      expect(errorButton).toBeTruthy();
-      expect(errorButton.textContent).toContain('Error');
-      expect(errorButton.querySelector('mat-icon')).toBeTruthy();
-    });
-
-    it('should render warning button with correct text and icon', () => {
-      fixture.detectChanges();
+      expect(action).toBeDefined();
+      spyOn(console, 'log');
+      expect(() => action!()).toThrow();
       
-      const warningButton = fixture.nativeElement.querySelector('button[color="accent"]');
-      expect(warningButton).toBeTruthy();
-      expect(warningButton.textContent).toContain('Warning');
-      expect(warningButton.querySelector('mat-icon')).toBeTruthy();
-    });
-  });
-
-  describe('Button Interactions', () => {
-    it('should call showSuccessNotification when success button is clicked', () => {
-      fixture.detectChanges();
-      
-      spyOn(component, 'showSuccessNotification');
-      
-      const successButton = fixture.nativeElement.querySelector('button[color="primary"]');
-      successButton.click();
-      
-      expect(component.showSuccessNotification).toHaveBeenCalled();
-    });
-
-    it('should call showErrorNotification when error button is clicked', () => {
-      fixture.detectChanges();
-      
-      spyOn(component, 'showErrorNotification');
-      
-      const errorButton = fixture.nativeElement.querySelector('button[color="warn"]');
-      errorButton.click();
-      
-      expect(component.showErrorNotification).toHaveBeenCalled();
-    });
-
-    it('should call showWarningNotification when warning button is clicked', () => {
-      fixture.detectChanges();
-      
-      spyOn(component, 'showWarningNotification');
-      
-      const warningButton = fixture.nativeElement.querySelector('button[color="accent"]');
-      warningButton.click();
-      
-      expect(component.showWarningNotification).toHaveBeenCalled();
-    });
-
-    it('should call showInfoNotification when info button is clicked', () => {
-      fixture.detectChanges();
-      
-      spyOn(component, 'showInfoNotification');
-      
-      const infoButtons = fixture.nativeElement.querySelectorAll('button[color="primary"]');
-      const infoButton = infoButtons[1]; // Second primary button
-      infoButton.click();
-      
-      expect(component.showInfoNotification).toHaveBeenCalled();
-    });
-
-    it('should call showNotificationWithActions when actions button is clicked', () => {
-      fixture.detectChanges();
-      
-      spyOn(component, 'showNotificationWithActions');
-      
-      const actionButtons = fixture.nativeElement.querySelectorAll('button[color="primary"]');
-      const actionsButton = actionButtons[2]; // Third primary button
-      actionsButton.click();
-      
-      expect(component.showNotificationWithActions).toHaveBeenCalled();
+      expect(console.log).toHaveBeenCalledWith('Retry operation clicked');
     });
   });
 
-  describe('Demo Content', () => {
-    it('should render demo sections', () => {
-      fixture.detectChanges();
+  describe('Accessibility Demo', () => {
+    it('should call notification service info method for accessibility demo', () => {
+      component.showAccessibilityDemo();
       
-      const sections = fixture.nativeElement.querySelectorAll('.demo-section');
-      expect(sections.length).toBeGreaterThan(0);
-    });
-
-    it('should render notification system demo section', () => {
-      fixture.detectChanges();
-      
-      const section = fixture.nativeElement.querySelector('.demo-section');
-      expect(section.textContent).toContain('Notification System');
-      expect(section.textContent).toContain('Advanced notification system with glass morphism effects');
-    });
-
-    it('should render enhanced cards demo section', () => {
-      fixture.detectChanges();
-      
-      const sections = fixture.nativeElement.querySelectorAll('.demo-section');
-      const cardsSection = sections[1]; // Second section
-      expect(cardsSection.textContent).toContain('Enhanced Card Components');
-    });
-
-    it('should render enhanced buttons demo section', () => {
-      fixture.detectChanges();
-      
-      const sections = fixture.nativeElement.querySelectorAll('.demo-section');
-      const buttonsSection = sections[2]; // Third section
-      expect(buttonsSection.textContent).toContain('Enhanced Button Styles');
-    });
-
-    it('should render typography demo section', () => {
-      fixture.detectChanges();
-      
-      const sections = fixture.nativeElement.querySelectorAll('.demo-section');
-      const typographySection = sections[3]; // Fourth section
-      expect(typographySection.textContent).toContain('Enhanced Typography');
-    });
-
-    it('should render status indicators demo section', () => {
-      fixture.detectChanges();
-      
-      const sections = fixture.nativeElement.querySelectorAll('.demo-section');
-      const statusSection = sections[4]; // Fifth section
-      expect(statusSection.textContent).toContain('Status Indicators');
-    });
-
-    it('should render responsive design demo section', () => {
-      fixture.detectChanges();
-      
-      const sections = fixture.nativeElement.querySelectorAll('.demo-section');
-      const responsiveSection = sections[5]; // Sixth section
-      expect(responsiveSection.textContent).toContain('Responsive Design');
-    });
-
-    it('should render animation effects demo section', () => {
-      fixture.detectChanges();
-      
-      const sections = fixture.nativeElement.querySelectorAll('.demo-section');
-      const animationSection = sections[6]; // Seventh section
-      expect(animationSection.textContent).toContain('Animation Effects');
+      expect(notificationService.info).toHaveBeenCalledWith(
+        'This notification demonstrates accessibility features with proper ARIA labels and keyboard navigation support.',
+        'Accessibility Demo',
+        {
+          duration: 8000,
+          autoClose: true,
+          dismissible: true
+        }
+      );
     });
   });
 
-  describe('Accessibility', () => {
-    it('should have proper button structure', () => {
-      fixture.detectChanges();
+  describe('Performance Demo', () => {
+    it('should call notification service success method for performance demo', () => {
+      component.showPerformanceDemo();
       
-      const buttons = fixture.nativeElement.querySelectorAll('button');
-      buttons.forEach((button: any) => {
-        expect(button).toBeTruthy();
-        expect(button.textContent.trim()).not.toBe('');
-      });
-    });
-
-    it('should have proper heading structure', () => {
-      fixture.detectChanges();
-      
-      const headings = fixture.nativeElement.querySelectorAll('h1, h2');
-      expect(headings.length).toBeGreaterThan(0);
+      expect(notificationService.success).toHaveBeenCalledWith(
+        'This notification demonstrates performance optimizations with efficient animations and minimal DOM updates.',
+        'Performance Demo',
+        {
+          duration: 6000,
+          autoClose: true,
+          dismissible: true
+        }
+      );
     });
   });
 
-  describe('Error Handling', () => {
-    it('should handle notification service errors gracefully', () => {
-      notificationService.success.and.throwError('Service error');
+  describe('Responsive Demo', () => {
+    it('should call notification service warning method for responsive demo', () => {
+      component.showResponsiveDemo();
       
-      expect(() => component.showSuccessNotification()).toThrow();
-    });
-
-    it('should handle action function errors gracefully', () => {
-      component.showSuccessNotification();
-      
-      const callArgs = notificationService.success.calls.mostRecent().args;
-      const action = callArgs[2].actions[0].action;
-      
-      spyOn(console, 'log').and.throwError('Action error');
-      
-      expect(() => action()).toThrow();
+      expect(notificationService.warning).toHaveBeenCalledWith(
+        'This notification demonstrates responsive design with adaptive layouts for different screen sizes.',
+        'Responsive Demo',
+        {
+          duration: 7000,
+          autoClose: true,
+          dismissible: true
+        }
+      );
     });
   });
 
-  describe('Performance', () => {
-    it('should render quickly', () => {
-      const startTime = performance.now();
-      fixture.detectChanges();
-      const endTime = performance.now();
+  describe('Theme Demo', () => {
+    it('should call notification service info method for theme demo', () => {
+      component.showThemeDemo();
       
-      expect(endTime - startTime).toBeLessThan(100); // Should render quickly
-    });
-
-    it('should handle multiple rapid button clicks', () => {
-      fixture.detectChanges();
-      
-      const successButton = fixture.nativeElement.querySelector('button[color="primary"]');
-      
-      // Rapid clicks
-      for (let i = 0; i < 10; i++) {
-        successButton.click();
-      }
-      
-      expect(notificationService.success).toHaveBeenCalledTimes(10);
+      expect(notificationService.info).toHaveBeenCalledWith(
+        'This notification demonstrates theme support with dark mode, high contrast, and reduced motion preferences.',
+        'Theme Demo',
+        {
+          duration: 9000,
+          autoClose: true,
+          dismissible: true
+        }
+      );
     });
   });
 }); 

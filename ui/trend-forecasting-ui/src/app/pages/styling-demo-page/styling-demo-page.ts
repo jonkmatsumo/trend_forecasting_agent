@@ -121,4 +121,108 @@ export class StylingDemoPageComponent {
       ]
     });
   }
+
+  showCustomNotification() {
+    this.notificationService.show({
+      type: 'success',
+      title: 'Custom Notification',
+      message: 'This is a custom notification with multiple actions and extended duration.',
+      duration: 10000,
+      autoClose: false,
+      dismissible: true,
+      actions: [
+        {
+          label: 'Primary Action',
+          color: 'primary',
+          action: () => {
+            console.log('Primary action executed');
+          }
+        },
+        {
+          label: 'Secondary Action',
+          color: 'accent',
+          action: () => {
+            console.log('Secondary action executed');
+          }
+        },
+        {
+          label: 'Cancel',
+          color: 'warn',
+          action: () => {
+            console.log('Cancel action executed');
+          }
+        }
+      ]
+    });
+  }
+
+  showErrorHandlingDemo() {
+    this.notificationService.error(
+      'This demonstrates error handling with custom actions and extended duration.',
+      'Error Handling Demo',
+      {
+        duration: 12000,
+        autoClose: false,
+        dismissible: true,
+        actions: [
+          {
+            label: 'Retry Operation',
+            color: 'primary',
+            action: () => {
+              console.log('Retry operation clicked');
+              throw new Error('Simulated error');
+            }
+          }
+        ]
+      }
+    );
+  }
+
+  showAccessibilityDemo() {
+    this.notificationService.info(
+      'This notification demonstrates accessibility features with proper ARIA labels and keyboard navigation support.',
+      'Accessibility Demo',
+      {
+        duration: 8000,
+        autoClose: true,
+        dismissible: true
+      }
+    );
+  }
+
+  showPerformanceDemo() {
+    this.notificationService.success(
+      'This notification demonstrates performance optimizations with efficient animations and minimal DOM updates.',
+      'Performance Demo',
+      {
+        duration: 6000,
+        autoClose: true,
+        dismissible: true
+      }
+    );
+  }
+
+  showResponsiveDemo() {
+    this.notificationService.warning(
+      'This notification demonstrates responsive design with adaptive layouts for different screen sizes.',
+      'Responsive Demo',
+      {
+        duration: 7000,
+        autoClose: true,
+        dismissible: true
+      }
+    );
+  }
+
+  showThemeDemo() {
+    this.notificationService.info(
+      'This notification demonstrates theme support with dark mode, high contrast, and reduced motion preferences.',
+      'Theme Demo',
+      {
+        duration: 9000,
+        autoClose: true,
+        dismissible: true
+      }
+    );
+  }
 } 

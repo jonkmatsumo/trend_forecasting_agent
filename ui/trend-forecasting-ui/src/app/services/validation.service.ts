@@ -239,7 +239,7 @@ export class ValidationService {
     }
     
     if (form instanceof AbstractControl && 'controls' in form) {
-      Object.keys(form.controls).forEach(controlName => {
+      Object.keys((form as any).controls).forEach(controlName => {
         const control = form.get(controlName);
         if (control && control.errors) {
           Object.keys(control.errors).forEach(errorKey => {
@@ -291,7 +291,7 @@ export class ValidationService {
    */
   private markFormGroupTouched(formGroup: AbstractControl): void {
     if (formGroup instanceof AbstractControl && 'controls' in formGroup) {
-      Object.keys(formGroup.controls).forEach(key => {
+      Object.keys((formGroup as any).controls).forEach(key => {
         const control = formGroup.get(key);
         if (control) {
           control.markAsTouched();

@@ -76,7 +76,8 @@ export class ErrorHandlerService {
     return request.pipe(
       retryWhen(errors =>
         errors.pipe(
-          tap((error, index) => {
+          tap((error: any) => {
+            const index = error.retryCount || 0;
             if (index >= retryAttempts - 1) {
               if (showNotification) {
                 this.notificationService.error(
@@ -92,7 +93,7 @@ export class ErrorHandlerService {
         )
       ),
       catchError(error => this.handleHttpError(error, config))
-    );
+    ) as Observable<T>;
   }
 
   /**

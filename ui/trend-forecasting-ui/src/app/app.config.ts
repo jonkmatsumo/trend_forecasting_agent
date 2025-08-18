@@ -3,6 +3,8 @@ import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideNativeDateAdapter } from '@angular/material/core';
+import { provideServiceWorker } from '@angular/service-worker';
+import { provideSnackBar } from '@angular/material/snack-bar';
 
 import { routes } from './app.routes';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
@@ -15,6 +17,8 @@ export const appConfig: ApplicationConfig = {
     provideClientHydration(withEventReplay()),
     provideHttpClient(withInterceptorsFromDi()),
     provideAnimations(),
-    provideNativeDateAdapter()
+    provideNativeDateAdapter(),
+    provideServiceWorker('ngsw-worker.js'),
+    provideSnackBar()
   ]
 };

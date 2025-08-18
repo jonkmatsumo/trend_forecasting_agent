@@ -1,14 +1,26 @@
 import { Routes } from '@angular/router';
-import { AgentChatPageComponent } from './pages/agent-chat-page/agent-chat-page';
-import { ApiTesterPageComponent } from './pages/api-tester-page/api-tester-page';
-import { StylingDemoPageComponent } from './pages/styling-demo-page/styling-demo-page';
-import { ErrorHandlingDemoPageComponent } from './pages/error-handling-demo-page/error-handling-demo-page';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/agent-chat', pathMatch: 'full' },
-  { path: 'agent-chat', component: AgentChatPageComponent },
-  { path: 'api-tester', component: ApiTesterPageComponent },
-  { path: 'styling-demo', component: StylingDemoPageComponent },
-  { path: 'error-handling-demo', component: ErrorHandlingDemoPageComponent },
+  { 
+    path: 'agent-chat', 
+    loadComponent: () => import('./pages/agent-chat-page/agent-chat-page').then(m => m.AgentChatPageComponent)
+  },
+  { 
+    path: 'api-tester', 
+    loadComponent: () => import('./pages/api-tester-page/api-tester-page').then(m => m.ApiTesterPageComponent)
+  },
+  { 
+    path: 'styling-demo', 
+    loadComponent: () => import('./pages/styling-demo-page/styling-demo-page').then(m => m.StylingDemoPageComponent)
+  },
+  { 
+    path: 'error-handling-demo', 
+    loadComponent: () => import('./pages/error-handling-demo-page/error-handling-demo-page').then(m => m.ErrorHandlingDemoPageComponent)
+  },
+  { 
+    path: 'performance', 
+    loadComponent: () => import('./pages/performance-page/performance-page').then(m => m.PerformancePageComponent)
+  },
   { path: '**', redirectTo: '/agent-chat' }
 ];

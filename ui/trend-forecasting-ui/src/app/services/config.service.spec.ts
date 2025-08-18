@@ -315,8 +315,9 @@ describe('ConfigService', () => {
   describe('Configuration Events', () => {
     it('should emit configuration change events', (done) => {
       service.configChanged$.subscribe((change) => {
-        expect(change.key).toBe('apiUrl');
-        expect(change.value).toBe('https://new-api.example.com');
+        expect(change).toBeDefined();
+        expect(change!.key).toBe('apiUrl');
+        expect(change!.value).toBe('https://new-api.example.com');
         done();
       });
 
@@ -355,21 +356,21 @@ describe('ConfigService', () => {
 
   describe('Configuration Utilities', () => {
     it('should merge configurations', () => {
-      const config1 = { a: 1, b: 2 };
-      const config2 = { b: 3, c: 4 };
+      const config1: any = { a: 1, b: 2 };
+      const config2: any = { b: 3, c: 4 };
       const merged = service.mergeConfig(config1, config2);
       expect(merged).toEqual({ a: 1, b: 3, c: 4 });
     });
 
     it('should deep merge configurations', () => {
-      const config1 = { a: { b: 1, c: 2 } };
-      const config2 = { a: { c: 3, d: 4 } };
+      const config1: any = { a: { b: 1, c: 2 } };
+      const config2: any = { a: { c: 3, d: 4 } };
       const merged = service.deepMergeConfig(config1, config2);
       expect(merged).toEqual({ a: { b: 1, c: 3, d: 4 } });
     });
 
     it('should clone configuration', () => {
-      const original = { apiUrl: 'https://example.com', features: { notifications: { enabled: true } } };
+      const original: any = { apiUrl: 'https://example.com', features: { notifications: { enabled: true } } };
       const cloned = service.cloneConfig(original);
       expect(cloned).toEqual(original);
       expect(cloned).not.toBe(original);
@@ -387,5 +388,4 @@ describe('ConfigService', () => {
       expect(nested).toEqual({ a: { b: { c: 1 } }, d: 2 });
     });
   });
-}); 
-}); 
+});
