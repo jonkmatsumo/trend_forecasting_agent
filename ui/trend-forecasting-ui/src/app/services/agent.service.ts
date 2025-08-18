@@ -8,7 +8,7 @@ import { environment } from '../../environments/environment';
   providedIn: 'root'
 })
 export class AgentService {
-  private baseUrl = environment.apiUrl + '/agent';
+  private baseUrl = environment.agentUrl;
 
   constructor(private http: HttpClient) {}
 

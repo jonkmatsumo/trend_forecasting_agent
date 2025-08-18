@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { CommonModule } from '@angular/common';
 import { ApiService } from '../../services/api.service';
+import { ApiTestService, ApiTestResult, ApiTestSuite } from '../../services/api-test.service';
 import { ApiEndpoint, ApiRequest, ApiResponse } from '../../models/api.models';
 
 @Component({
@@ -25,6 +26,12 @@ import { ApiEndpoint, ApiRequest, ApiResponse } from '../../models/api.models';
   standalone: true
 })
 export class ApiTesterComponent implements OnInit {
+  // Backend integration testing
+  integrationTestResults: ApiTestSuite | null = null;
+  isRunningIntegrationTests = false;
+  corsTestResult: ApiTestResult | null = null;
+  proxyTestResults: ApiTestResult[] | null = null;
+
   endpoints: ApiEndpoint[] = [
     {
       name: 'Health Check',
@@ -123,7 +130,8 @@ export class ApiTesterComponent implements OnInit {
 
   constructor(
     private fb: FormBuilder,
-    private apiService: ApiService
+    private apiService: ApiService,
+    private apiTestService: ApiTestService
   ) {
     this.requestForm = this.fb.group({
       baseUrl: ['http://localhost:5000', Validators.required],
@@ -178,5 +186,62 @@ export class ApiTesterComponent implements OnInit {
 
   copyToClipboard(text: string): void {
     navigator.clipboard.writeText(text);
+  }
+
+  // Backend Integration Testing Methods
+  runIntegrationTests(): void {
+    this.isRunningIntegrationTests = true;
+    this.integrationTestResults = null;
+
+    this.apiTestService.testAllEndpoints().subscribe({
+      next: (results) => {
+        this.integrationTestResults = results;
+        this.isRunningIntegrationTests = false;
+      },
+      error: (error) => {
+        console.error('Integration test error:', error);
+        this.isRunningIntegrationTests = false;
+      }
+    });
+  }
+
+  testCorsConfiguration(): void {
+    this.apiTestService.testCorsConfiguration().subscribe({
+      next: (result) => {
+        this.corsTestResult = result;
+      },
+      error: (error) => {
+        console.error('CORS test error:', error);
+      }
+    });
+  }
+
+  testProxyConfiguration(): void {
+    this.apiTestService.testProxyConfiguration().subscribe({
+      next: (results) => {
+        this.proxyTestResults = results;
+      },
+      error: (error) => {
+        console.error('Proxy test error:', error);
+      }
+    });
+  }
+
+  getStatusColor(status: string): string {
+    switch (status) {
+      case 'success': return 'success';
+      case 'error': return 'warn';
+      case 'timeout': return 'accent';
+      default: return 'primary';
+    }
+  }
+
+  getStatusIcon(status: string): string {
+    switch (status) {
+      case 'success': return 'check_circle';
+      case 'error': return 'error';
+      case 'timeout': return 'schedule';
+      default: return 'help';
+    }
   }
 }

@@ -319,3 +319,199 @@
     padding: $spacing-lg;
   }
 }
+
+// Backend Integration Testing Styles
+.integration-testing-section {
+  padding: $spacing-xl;
+  border-top: 1px solid $border-color;
+  background: $background-color;
+
+  h3 {
+    @include heading-3;
+    margin-bottom: $spacing-lg;
+    color: $text-primary;
+  }
+}
+
+.integration-controls {
+  @include flex-center;
+  gap: $spacing-md;
+  margin-bottom: $spacing-xl;
+  flex-wrap: wrap;
+
+  button {
+    min-width: 160px;
+    height: 48px;
+    font-weight: 600;
+    border-radius: $border-radius-md;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: $shadow-medium;
+    }
+  }
+}
+
+.integration-results {
+  @include card;
+  margin-bottom: $spacing-lg;
+
+  h4 {
+    @include heading-3;
+    margin-bottom: $spacing-md;
+    color: $text-primary;
+  }
+}
+
+.test-summary {
+  @include flex-center;
+  gap: $spacing-lg;
+  margin-bottom: $spacing-lg;
+  padding: $spacing-md;
+  background: $background-color;
+  border-radius: $border-radius-md;
+  flex-wrap: wrap;
+
+  .summary-item {
+    @include flex-center;
+    gap: $spacing-xs;
+    font-weight: 500;
+
+    .label {
+      color: $text-secondary;
+    }
+
+    .value {
+      font-weight: 600;
+      
+      &.success {
+        color: $success-color;
+      }
+      
+      &.error {
+        color: $error-color;
+      }
+    }
+  }
+}
+
+.test-results {
+  @include flex-column;
+  gap: $spacing-sm;
+}
+
+.test-result-item {
+  padding: $spacing-md;
+  border-radius: $border-radius-md;
+  border: 1px solid $border-color;
+  transition: all 0.2s ease;
+
+  &.status--success {
+    background: rgba($success-color, 0.05);
+    border-color: rgba($success-color, 0.2);
+  }
+
+  &.status--error {
+    background: rgba($error-color, 0.05);
+    border-color: rgba($error-color, 0.2);
+  }
+
+  &.status--timeout {
+    background: rgba($warning-color, 0.05);
+    border-color: rgba($warning-color, 0.2);
+  }
+}
+
+.test-header {
+  @include flex-center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-sm;
+
+  .test-endpoint {
+    font-weight: 600;
+    color: $text-primary;
+    flex: 1;
+  }
+
+  .test-time {
+    font-size: 0.875rem;
+    color: $text-secondary;
+    font-family: $font-family-mono;
+  }
+}
+
+.test-error {
+  color: $error-color;
+  font-size: 0.875rem;
+  margin-top: $spacing-sm;
+  padding: $spacing-sm;
+  background: rgba($error-color, 0.1);
+  border-radius: $border-radius-sm;
+}
+
+.test-data {
+  margin-top: $spacing-sm;
+  
+  pre {
+    background: $background-color;
+    padding: $spacing-sm;
+    border-radius: $border-radius-sm;
+    font-size: 0.75rem;
+    overflow-x: auto;
+    @include scrollbar;
+  }
+}
+
+.cors-test-results,
+.proxy-test-results {
+  @include card;
+  margin-bottom: $spacing-lg;
+
+  h4 {
+    @include heading-3;
+    margin-bottom: $spacing-md;
+    color: $text-primary;
+  }
+}
+
+.cors-headers {
+  margin-top: $spacing-md;
+  
+  h5 {
+    @include heading-3;
+    margin-bottom: $spacing-sm;
+    color: $text-primary;
+    font-size: 1rem;
+  }
+  
+  pre {
+    background: $background-color;
+    padding: $spacing-sm;
+    border-radius: $border-radius-sm;
+    font-size: 0.75rem;
+    overflow-x: auto;
+    @include scrollbar;
+  }
+}
+
+// Responsive design for integration testing
+@include mobile {
+  .integration-testing-section {
+    padding: $spacing-md;
+  }
+
+  .integration-controls {
+    flex-direction: column;
+    align-items: stretch;
+
+    button {
+      min-width: auto;
+    }
+  }
+
+  .test-summary {
+    flex-direction: column;
+    gap: $spacing-sm;
+  }
+}

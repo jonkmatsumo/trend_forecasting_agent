@@ -99,5 +99,119 @@
         </div>
       </div>
     </div>
+
+    <!-- Backend Integration Testing Section -->
+    <div class="integration-testing-section">
+      <h3>Backend Integration Testing</h3>
+      
+      <div class="integration-controls">
+        <button mat-raised-button 
+                color="primary"
+                [disabled]="isRunningIntegrationTests"
+                (click)="runIntegrationTests()">
+          <mat-icon>play_arrow</mat-icon>
+          Run Full Integration Test
+        </button>
+        
+        <button mat-raised-button 
+                color="accent"
+                (click)="testCorsConfiguration()">
+          <mat-icon>security</mat-icon>
+          Test CORS
+        </button>
+        
+        <button mat-raised-button 
+                color="accent"
+                (click)="testProxyConfiguration()">
+          <mat-icon>router</mat-icon>
+          Test Proxy
+        </button>
+      </div>
+
+      <!-- Integration Test Results -->
+      <div *ngIf="integrationTestResults" class="integration-results">
+        <h4>Integration Test Results</h4>
+        
+        <div class="test-summary">
+          <div class="summary-item">
+            <span class="label">Total Tests:</span>
+            <span class="value">{{ integrationTestResults.summary.total }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">Successful:</span>
+            <span class="value success">{{ integrationTestResults.summary.successful }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">Failed:</span>
+            <span class="value error">{{ integrationTestResults.summary.failed }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">Avg Response Time:</span>
+            <span class="value">{{ integrationTestResults.summary.averageResponseTime }}ms</span>
+          </div>
+        </div>
+
+        <div class="test-results">
+          <div *ngFor="let test of integrationTestResults.tests" 
+               class="test-result-item"
+               [ngClass]="'status--' + test.status">
+            <div class="test-header">
+              <mat-icon [color]="getStatusColor(test.status)">
+                {{ getStatusIcon(test.status) }}
+              </mat-icon>
+              <span class="test-endpoint">{{ test.endpoint }}</span>
+              <span class="test-time" *ngIf="test.responseTime">
+                {{ test.responseTime }}ms
+              </span>
+            </div>
+            
+            <div *ngIf="test.error" class="test-error">
+              {{ test.error }}
+            </div>
+            
+            <div *ngIf="test.data && test.status === 'success'" class="test-data">
+              <pre>{{ formatJson(test.data) }}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CORS Test Results -->
+      <div *ngIf="corsTestResult" class="cors-test-results">
+        <h4>CORS Configuration Test</h4>
+        <div class="test-result-item" [ngClass]="'status--' + corsTestResult.status">
+          <div class="test-header">
+            <mat-icon [color]="getStatusColor(corsTestResult.status)">
+              {{ getStatusIcon(corsTestResult.status) }}
+            </mat-icon>
+            <span class="test-endpoint">{{ corsTestResult.endpoint }}</span>
+          </div>
+          
+          <div *ngIf="corsTestResult.data?.corsHeaders" class="cors-headers">
+            <h5>CORS Headers:</h5>
+            <pre>{{ formatJson(corsTestResult.data.corsHeaders) }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Proxy Test Results -->
+      <div *ngIf="proxyTestResults" class="proxy-test-results">
+        <h4>Proxy Configuration Test</h4>
+        <div *ngFor="let test of proxyTestResults" 
+             class="test-result-item"
+             [ngClass]="'status--' + test.status">
+          <div class="test-header">
+            <mat-icon [color]="getStatusColor(test.status)">
+              {{ getStatusIcon(test.status) }}
+            </mat-icon>
+            <span class="test-endpoint">{{ test.endpoint }}</span>
+          </div>
+          
+          <div *ngIf="test.error" class="test-error">
+            {{ test.error }}
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
