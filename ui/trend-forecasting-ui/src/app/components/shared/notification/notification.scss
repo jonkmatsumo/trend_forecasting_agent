@@ -1,0 +1,293 @@
+@import '../../../../styles/variables';
+@import '../../../../styles/mixins';
+
+.notification-container {
+  @include card-glass;
+  @include flex-between;
+  min-width: 320px;
+  max-width: 480px;
+  margin-bottom: $spacing-md;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: $shadow-lg;
+  transition: all $transition-smooth;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-xl;
+  }
+}
+
+.notification-content {
+  @include flex-center;
+  width: 100%;
+  padding: $spacing-lg;
+  gap: $spacing-md;
+}
+
+.notification-icon {
+  @include flex-center;
+  width: 40px;
+  height: 40px;
+  border-radius: $border-radius-full;
+  flex-shrink: 0;
+  
+  mat-icon {
+    font-size: 1.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+}
+
+.notification-body {
+  flex: 1;
+  min-width: 0;
+  @include flex-column;
+  gap: $spacing-xs;
+}
+
+.notification-title {
+  @include heading-3;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $text-primary;
+  margin: 0;
+  line-height: $line-height-tight;
+}
+
+.notification-message {
+  @include body-text;
+  color: $text-secondary;
+  margin: 0;
+  line-height: $line-height-normal;
+  word-wrap: break-word;
+}
+
+.notification-actions {
+  @include flex-start;
+  gap: $spacing-sm;
+  margin-top: $spacing-sm;
+  
+  button {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    padding: $spacing-xs $spacing-sm;
+    min-width: auto;
+    border-radius: $border-radius-sm;
+    transition: all $transition-fast;
+    
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: $shadow-light;
+    }
+  }
+}
+
+.notification-close {
+  @include flex-center;
+  flex-shrink: 0;
+  
+  .close-button {
+    width: 32px;
+    height: 32px;
+    border-radius: $border-radius-full;
+    transition: all $transition-fast;
+    
+    &:hover {
+      background: rgba($text-secondary, 0.1);
+      transform: scale(1.1);
+    }
+    
+    mat-icon {
+      font-size: 1.125rem;
+      width: 1.125rem;
+      height: 1.125rem;
+    }
+  }
+}
+
+.notification-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, $primary-color, $secondary-color);
+    border-radius: 0 0 $border-radius-sm 0;
+    transition: width linear;
+  }
+}
+
+// Type-specific styles
+.notification--success {
+  background: linear-gradient(135deg, rgba($status-success, 0.1) 0%, rgba($status-success, 0.05) 100%);
+  border-color: rgba($status-success, 0.3);
+  
+  .notification-icon {
+    background: rgba($status-success, 0.1);
+    color: $status-success;
+  }
+  
+  .notification-progress .progress-bar {
+    background: linear-gradient(90deg, $status-success, lighten($status-success, 20%));
+  }
+}
+
+.notification--error {
+  background: linear-gradient(135deg, rgba($status-error, 0.1) 0%, rgba($status-error, 0.05) 100%);
+  border-color: rgba($status-error, 0.3);
+  
+  .notification-icon {
+    background: rgba($status-error, 0.1);
+    color: $status-error;
+  }
+  
+  .notification-progress .progress-bar {
+    background: linear-gradient(90deg, $status-error, lighten($status-error, 20%));
+  }
+}
+
+.notification--warning {
+  background: linear-gradient(135deg, rgba($status-warning, 0.1) 0%, rgba($status-warning, 0.05) 100%);
+  border-color: rgba($status-warning, 0.3);
+  
+  .notification-icon {
+    background: rgba($status-warning, 0.1);
+    color: $status-warning;
+  }
+  
+  .notification-progress .progress-bar {
+    background: linear-gradient(90deg, $status-warning, lighten($status-warning, 20%));
+  }
+}
+
+.notification--info {
+  background: linear-gradient(135deg, rgba($status-info, 0.1) 0%, rgba($status-info, 0.05) 100%);
+  border-color: rgba($status-info, 0.3);
+  
+  .notification-icon {
+    background: rgba($status-info, 0.1);
+    color: $status-info;
+  }
+  
+  .notification-progress .progress-bar {
+    background: linear-gradient(90deg, $status-info, lighten($status-info, 20%));
+  }
+}
+
+// Responsive design
+@include mobile {
+  .notification-container {
+    min-width: 280px;
+    max-width: calc(100vw - #{$spacing-lg * 2});
+    margin: 0 $spacing-md $spacing-md $spacing-md;
+  }
+  
+  .notification-content {
+    padding: $spacing-md;
+    gap: $spacing-sm;
+  }
+  
+  .notification-icon {
+    width: 32px;
+    height: 32px;
+    
+    mat-icon {
+      font-size: 1.25rem;
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+  }
+  
+  .notification-title {
+    font-size: $font-size-base;
+  }
+  
+  .notification-message {
+    font-size: $font-size-sm;
+  }
+  
+  .notification-actions {
+    flex-direction: column;
+    align-items: stretch;
+    
+    button {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
+
+@include tablet {
+  .notification-container {
+    min-width: 300px;
+    max-width: 400px;
+  }
+}
+
+// Animation enhancements
+.notification-container {
+  &.mat-elevation-z0 {
+    box-shadow: $shadow-lg;
+  }
+  
+  &.mat-elevation-z1 {
+    box-shadow: $shadow-xl;
+  }
+}
+
+// Focus states for accessibility
+.notification-container:focus-within {
+  outline: 2px solid $border-focus;
+  outline-offset: 2px;
+}
+
+.close-button:focus-visible {
+  @include focus-ring;
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+  .notification-container {
+    border-width: 2px;
+    box-shadow: 0 0 0 1px $text-primary;
+  }
+  
+  .notification-icon {
+    border: 1px solid currentColor;
+  }
+}
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+  .notification-container {
+    transition: none;
+    
+    &:hover {
+      transform: none;
+    }
+  }
+  
+  .close-button {
+    transition: none;
+    
+    &:hover {
+      transform: none;
+    }
+  }
+  
+  .notification-actions button {
+    transition: none;
+    
+    &:hover {
+      transform: none;
+    }
+  }
+} 

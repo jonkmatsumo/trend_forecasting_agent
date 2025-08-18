@@ -1,0 +1,73 @@
+@import '../../../../styles/variables';
+@import '../../../../styles/mixins';
+
+.notification-overlay {
+  position: fixed;
+  top: 80px; // Below header
+  right: $spacing-lg;
+  z-index: $z-index-modal;
+  pointer-events: none;
+  @include fade-in;
+}
+
+.notification-stack {
+  @include flex-column;
+  gap: $spacing-sm;
+  pointer-events: auto;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  @include scrollbar-thin;
+  
+  // Add padding for scrollbar
+  padding-right: $spacing-xs;
+}
+
+// Responsive design
+@include mobile {
+  .notification-overlay {
+    top: 70px;
+    right: $spacing-sm;
+    left: $spacing-sm;
+  }
+  
+  .notification-stack {
+    max-height: calc(100vh - 100px);
+  }
+}
+
+@include tablet {
+  .notification-overlay {
+    right: $spacing-md;
+  }
+}
+
+// Animation for stack entrance
+.notification-stack {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+  .notification-overlay {
+    border: 2px solid $text-primary;
+    background: $surface-color;
+  }
+}
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+  .notification-stack {
+    animation: none;
+  }
+} 

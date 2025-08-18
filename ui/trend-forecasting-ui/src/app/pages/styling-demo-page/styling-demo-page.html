@@ -1,0 +1,182 @@
+<div class="styling-demo-container">
+  <div class="demo-header">
+    <h1 class="text-gradient">Phase 5 Styling Enhancements</h1>
+    <p>Showcasing advanced UI/UX features and modern design patterns</p>
+  </div>
+
+  <div class="demo-sections">
+    <!-- Notification System Demo -->
+    <section class="demo-section">
+      <h2>Notification System</h2>
+      <p>Advanced notification system with glass morphism effects, auto-dismiss, and action buttons.</p>
+      
+      <div class="demo-controls">
+        <button mat-raised-button color="primary" (click)="showSuccessNotification()">
+          <mat-icon>check_circle</mat-icon>
+          Success
+        </button>
+        
+        <button mat-raised-button color="warn" (click)="showErrorNotification()">
+          <mat-icon>error</mat-icon>
+          Error
+        </button>
+        
+        <button mat-raised-button color="accent" (click)="showWarningNotification()">
+          <mat-icon>warning</mat-icon>
+          Warning
+        </button>
+        
+        <button mat-raised-button color="primary" (click)="showInfoNotification()">
+          <mat-icon>info</mat-icon>
+          Info
+        </button>
+        
+        <button mat-raised-button color="primary" (click)="showNotificationWithActions()">
+          <mat-icon>settings</mat-icon>
+          With Actions
+        </button>
+      </div>
+    </section>
+
+    <!-- Enhanced Cards Demo -->
+    <section class="demo-section">
+      <h2>Enhanced Card Components</h2>
+      <p>Various card styles with hover effects, glass morphism, and interactive elements.</p>
+      
+      <div class="card-grid">
+        <div class="card card-elevated">
+          <h3>Elevated Card</h3>
+          <p>Card with enhanced shadow and elevation effects.</p>
+        </div>
+        
+        <div class="card card-glass">
+          <h3>Glass Morphism</h3>
+          <p>Modern glass effect with backdrop blur and transparency.</p>
+        </div>
+        
+        <div class="card card-interactive">
+          <h3>Interactive Card</h3>
+          <p>Hover and click effects with smooth transitions.</p>
+        </div>
+        
+        <div class="card card-hover">
+          <h3>Hover Card</h3>
+          <p>Simple hover effect with shadow enhancement.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Enhanced Buttons Demo -->
+    <section class="demo-section">
+      <h2>Enhanced Button Styles</h2>
+      <p>Various button styles with gradients, hover effects, and modern design.</p>
+      
+      <div class="button-grid">
+        <button class="btn btn-primary">Primary Button</button>
+        <button class="btn btn-secondary">Secondary Button</button>
+        <button class="btn btn-ghost">Ghost Button</button>
+        <button class="btn btn-gradient">Gradient Button</button>
+        <button class="btn btn-icon">
+          <mat-icon>favorite</mat-icon>
+        </button>
+      </div>
+    </section>
+
+    <!-- Typography Demo -->
+    <section class="demo-section">
+      <h2>Enhanced Typography</h2>
+      <p>Advanced typography with gradient text, truncation, and responsive sizing.</p>
+      
+      <div class="typography-demo">
+        <h1 class="text-gradient">Gradient Heading</h1>
+        <h2 class="text-truncate">This is a very long heading that will be truncated to show the truncation effect</h2>
+        <p class="text-multiline-truncate">This is a longer paragraph that demonstrates the multiline truncation feature. It will show only the first two lines and then truncate with an ellipsis to indicate there's more content below.</p>
+        
+        <div class="font-sizes">
+          <p class="text-xs">Extra Small Text</p>
+          <p class="text-sm">Small Text</p>
+          <p class="text-base">Base Text</p>
+          <p class="text-lg">Large Text</p>
+          <p class="text-xl">Extra Large Text</p>
+        </div>
+        
+        <div class="font-weights">
+          <p class="font-light">Light Weight Text</p>
+          <p class="font-normal">Normal Weight Text</p>
+          <p class="font-medium">Medium Weight Text</p>
+          <p class="font-semibold">Semibold Weight Text</p>
+          <p class="font-bold">Bold Weight Text</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Status Indicators Demo -->
+    <section class="demo-section">
+      <h2>Status Indicators</h2>
+      <p>Color-coded status indicators for different states and feedback.</p>
+      
+      <div class="status-grid">
+        <div class="status-item status-success">
+          <mat-icon>check_circle</mat-icon>
+          <span>Success Status</span>
+        </div>
+        
+        <div class="status-item status-error">
+          <mat-icon>error</mat-icon>
+          <span>Error Status</span>
+        </div>
+        
+        <div class="status-item status-warning">
+          <mat-icon>warning</mat-icon>
+          <span>Warning Status</span>
+        </div>
+        
+        <div class="status-item status-info">
+          <mat-icon>info</mat-icon>
+          <span>Info Status</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Responsive Design Demo -->
+    <section class="demo-section">
+      <h2>Responsive Design</h2>
+      <p>Responsive layout that adapts to different screen sizes.</p>
+      
+      <div class="responsive-demo">
+        <div class="responsive-item">
+          <h4>Mobile</h4>
+          <p class="hide-mobile">Hidden on mobile</p>
+          <p class="show-mobile">Visible on mobile</p>
+        </div>
+        
+        <div class="responsive-item">
+          <h4>Tablet</h4>
+          <p class="hide-tablet-only">Hidden on tablet</p>
+          <p class="show-tablet-only">Visible on tablet</p>
+        </div>
+        
+        <div class="responsive-item">
+          <h4>Desktop</h4>
+          <p class="hide-desktop">Hidden on desktop</p>
+          <p class="show-desktop">Visible on desktop</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Animation Demo -->
+    <section class="demo-section">
+      <h2>Animation Effects</h2>
+      <p>Various animation effects and transitions.</p>
+      
+      <div class="animation-demo">
+        <div class="animation-item fade-in">Fade In</div>
+        <div class="animation-item slide-up">Slide Up</div>
+        <div class="animation-item slide-down">Slide Down</div>
+        <div class="animation-item scale-in">Scale In</div>
+        <div class="animation-item bounce-in">Bounce In</div>
+        <div class="animation-item shimmer">Shimmer Effect</div>
+      </div>
+    </section>
+  </div>
+</div> 

@@ -1,0 +1,382 @@
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
+
+.styling-demo-container {
+  @include flex-column;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: $spacing-xl;
+  gap: $spacing-xxl;
+  @include fade-in;
+}
+
+.demo-header {
+  text-align: center;
+  margin-bottom: $spacing-xxl;
+  
+  h1 {
+    @include heading-1;
+    margin-bottom: $spacing-md;
+  }
+  
+  p {
+    @include body-text;
+    color: $text-secondary;
+    font-size: $font-size-lg;
+  }
+}
+
+.demo-sections {
+  @include flex-column;
+  gap: $spacing-xxl;
+}
+
+.demo-section {
+  @include card-elevated;
+  padding: $spacing-xxl;
+  
+  h2 {
+    @include heading-2;
+    margin-bottom: $spacing-md;
+    color: $text-primary;
+  }
+  
+  > p {
+    @include body-text;
+    color: $text-secondary;
+    margin-bottom: $spacing-xl;
+    font-size: $font-size-lg;
+  }
+}
+
+// Notification Demo
+.demo-controls {
+  @include flex-wrap;
+  gap: $spacing-md;
+  justify-content: center;
+  
+  button {
+    @include button-gradient;
+    min-width: 140px;
+    height: 48px;
+    font-weight: $font-weight-semibold;
+    
+    mat-icon {
+      margin-right: $spacing-xs;
+    }
+  }
+}
+
+// Card Grid
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: $spacing-lg;
+  margin-top: $spacing-lg;
+}
+
+// Button Grid
+.button-grid {
+  @include flex-wrap;
+  gap: $spacing-md;
+  justify-content: center;
+  margin-top: $spacing-lg;
+}
+
+.btn {
+  @include button-base;
+  padding: $spacing-sm $spacing-lg;
+  font-weight: $font-weight-medium;
+  border-radius: $border-radius-md;
+  transition: all $transition-smooth;
+  min-width: 140px;
+  height: 48px;
+  
+  &.btn-primary {
+    @include button-primary;
+  }
+  
+  &.btn-secondary {
+    @include button-secondary;
+  }
+  
+  &.btn-ghost {
+    @include button-ghost;
+  }
+  
+  &.btn-gradient {
+    @include button-gradient;
+  }
+  
+  &.btn-icon {
+    @include button-icon;
+    min-width: 48px;
+    width: 48px;
+    
+    mat-icon {
+      font-size: 1.25rem;
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+  }
+}
+
+// Typography Demo
+.typography-demo {
+  @include flex-column;
+  gap: $spacing-xl;
+  margin-top: $spacing-lg;
+  
+  .text-gradient {
+    @include text-gradient;
+    font-size: $font-size-3xl;
+    font-weight: $font-weight-bold;
+  }
+  
+  .text-truncate {
+    max-width: 400px;
+  }
+  
+  .text-multiline-truncate {
+    max-width: 500px;
+    @include text-multiline-truncate(2);
+  }
+}
+
+.font-sizes,
+.font-weights {
+  @include flex-column;
+  gap: $spacing-sm;
+  
+  p {
+    margin: 0;
+    padding: $spacing-xs $spacing-sm;
+    background: $background-light;
+    border-radius: $border-radius-sm;
+    border-left: 3px solid $primary-color;
+  }
+}
+
+// Status Grid
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: $spacing-md;
+  margin-top: $spacing-lg;
+}
+
+.status-item {
+  @include flex-center;
+  gap: $spacing-sm;
+  padding: $spacing-md;
+  border-radius: $border-radius-md;
+  font-weight: $font-weight-medium;
+  
+  mat-icon {
+    font-size: 1.25rem;
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  
+  &.status-success {
+    @include status-success;
+  }
+  
+  &.status-error {
+    @include status-error;
+  }
+  
+  &.status-warning {
+    @include status-warning;
+  }
+  
+  &.status-info {
+    @include status-info;
+  }
+}
+
+// Responsive Demo
+.responsive-demo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: $spacing-lg;
+  margin-top: $spacing-lg;
+}
+
+.responsive-item {
+  @include card;
+  text-align: center;
+  
+  h4 {
+    @include heading-3;
+    margin-bottom: $spacing-md;
+    color: $text-primary;
+  }
+  
+  p {
+    @include body-text;
+    margin: $spacing-xs 0;
+    padding: $spacing-xs;
+    border-radius: $border-radius-sm;
+    
+    &.hide-mobile,
+    &.hide-tablet-only,
+    &.hide-desktop {
+      background: rgba($status-error, 0.1);
+      color: $status-error;
+    }
+    
+    &.show-mobile,
+    &.show-tablet-only,
+    &.show-desktop {
+      background: rgba($status-success, 0.1);
+      color: $status-success;
+    }
+  }
+}
+
+// Animation Demo
+.animation-demo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: $spacing-md;
+  margin-top: $spacing-lg;
+}
+
+.animation-item {
+  @include card-interactive;
+  @include flex-center;
+  height: 80px;
+  font-weight: $font-weight-medium;
+  text-align: center;
+  cursor: pointer;
+  
+  &.fade-in {
+    @include fade-in;
+  }
+  
+  &.slide-up {
+    @include slide-up;
+  }
+  
+  &.slide-down {
+    @include slide-down;
+  }
+  
+  &.scale-in {
+    @include scale-in;
+  }
+  
+  &.bounce-in {
+    @include bounce-in;
+  }
+  
+  &.shimmer {
+    @include shimmer;
+    background: linear-gradient(135deg, $primary-color, $secondary-color);
+    color: white;
+  }
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: $shadow-xl;
+  }
+}
+
+// Responsive Design
+@include mobile {
+  .styling-demo-container {
+    padding: $spacing-md;
+    gap: $spacing-xl;
+  }
+  
+  .demo-section {
+    padding: $spacing-lg;
+  }
+  
+  .demo-controls {
+    flex-direction: column;
+    align-items: stretch;
+    
+    button {
+      min-width: auto;
+    }
+  }
+  
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .button-grid {
+    flex-direction: column;
+    align-items: stretch;
+    
+    .btn {
+      min-width: auto;
+    }
+  }
+  
+  .status-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .responsive-demo {
+    grid-template-columns: 1fr;
+  }
+  
+  .animation-demo {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@include tablet {
+  .styling-demo-container {
+    padding: $spacing-lg;
+  }
+  
+  .demo-section {
+    padding: $spacing-xl;
+  }
+  
+  .card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .animation-demo {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+  .demo-section {
+    border: 2px solid $text-primary;
+  }
+  
+  .status-item {
+    border-width: 2px;
+  }
+  
+  .animation-item {
+    border: 2px solid $text-primary;
+  }
+}
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+  .animation-item {
+    animation: none;
+    
+    &:hover {
+      transform: none;
+    }
+  }
+  
+  .btn {
+    transition: none;
+    
+    &:hover {
+      transform: none;
+    }
+  }
+} 

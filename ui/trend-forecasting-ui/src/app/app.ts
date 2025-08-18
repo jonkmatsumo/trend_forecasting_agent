@@ -1,13 +1,15 @@
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { HeaderComponent } from './components/shared/header/header';
+import { NotificationContainerComponent } from './components/shared/notification-container/notification-container';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, HeaderComponent],
+  standalone: true,
+  imports: [RouterOutlet, HeaderComponent, NotificationContainerComponent],
   templateUrl: './app.html',
-  styleUrl: './app.scss'
+  styleUrls: ['./app.scss']
 })
-export class App {
-  protected readonly title = signal('trend-forecasting-ui');
+export class AppComponent {
+  title = 'trend-forecasting-ui';
 }

@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-
+import { provideZonelessChangeDetection } from '@angular/core';
 import { LoadingSpinnerComponent } from './loading-spinner';
 
 describe('LoadingSpinnerComponent', () => {
@@ -8,11 +8,14 @@ describe('LoadingSpinnerComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [LoadingSpinnerComponent]
+      imports: [LoadingSpinnerComponent],
+      providers: [
+        provideZonelessChangeDetection()
+      ]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(LoadingSpinner);
+    fixture = TestBed.createComponent(LoadingSpinnerComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

@@ -26,6 +26,30 @@
   justify-content: center;
 }
 
+// Enhanced Flexbox Mixins
+@mixin flex-start {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+@mixin flex-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+@mixin flex-around {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+
+@mixin flex-wrap {
+  display: flex;
+  flex-wrap: wrap;
+}
+
 // Card Mixins
 @mixin card {
   background: $surface-color;
@@ -37,6 +61,38 @@
 @mixin card-hover {
   transition: box-shadow 0.3s ease;
   &:hover {
+    box-shadow: $shadow-medium;
+  }
+}
+
+// Enhanced Card Mixins
+@mixin card-elevated {
+  background: $surface-elevated;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-lg;
+  padding: $spacing-xl;
+}
+
+@mixin card-glass {
+  background: $surface-overlay;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-medium;
+}
+
+@mixin card-interactive {
+  @include card;
+  cursor: pointer;
+  transition: all $transition-smooth;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-lg;
+  }
+  
+  &:active {
+    transform: translateY(0);
     box-shadow: $shadow-medium;
   }
 }
@@ -84,6 +140,41 @@
   }
 }
 
+// Enhanced Button Mixins
+@mixin button-ghost {
+  @include button-base;
+  background: transparent;
+  color: $text-primary;
+  border: 1px solid transparent;
+  
+  &:hover {
+    background: rgba($primary-color, 0.1);
+    border-color: rgba($primary-color, 0.2);
+  }
+}
+
+@mixin button-gradient {
+  @include button-base;
+  background: linear-gradient(135deg, $primary-color 0%, $primary-dark 100%);
+  color: white;
+  border: none;
+  
+  &:hover {
+    background: linear-gradient(135deg, $primary-dark 0%, darken($primary-dark, 10%) 100%);
+    transform: translateY(-1px);
+    box-shadow: $shadow-medium;
+  }
+}
+
+@mixin button-icon {
+  @include button-base;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: $border-radius-full;
+  min-width: auto;
+}
+
 // Typography Mixins
 @mixin heading-1 {
   font-size: 2.5rem;
@@ -118,6 +209,27 @@
   color: $text-secondary;
 }
 
+// Enhanced Typography Mixins
+@mixin text-gradient {
+  background: linear-gradient(135deg, $primary-color 0%, $secondary-color 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@mixin text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin text-multiline-truncate($lines: 2) {
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 // Responsive Mixins
 @mixin mobile {
   @media (max-width: #{$breakpoint-md - 1px}) {
@@ -137,6 +249,31 @@
   }
 }
 
+// Enhanced Responsive Mixins
+@mixin mobile-only {
+  @media (max-width: #{$breakpoint-sm - 1px}) {
+    @content;
+  }
+}
+
+@mixin tablet-only {
+  @media (min-width: #{$breakpoint-sm}) and (max-width: #{$breakpoint-lg - 1px}) {
+    @content;
+  }
+}
+
+@mixin desktop-only {
+  @media (min-width: #{$breakpoint-lg}) and (max-width: #{$breakpoint-2xl - 1px}) {
+    @content;
+  }
+}
+
+@mixin large-desktop {
+  @media (min-width: #{$breakpoint-2xl}) {
+    @content;
+  }
+}
+
 // Animation Mixins
 @mixin fade-in {
   animation: fadeIn 0.3s ease-in-out;
@@ -148,6 +285,33 @@
 
 @mixin pulse {
   animation: pulse 2s infinite;
+}
+
+// Enhanced Animation Mixins
+@mixin slide-down {
+  animation: slideDown 0.3s ease-out;
+}
+
+@mixin slide-left {
+  animation: slideLeft 0.3s ease-out;
+}
+
+@mixin slide-right {
+  animation: slideRight 0.3s ease-out;
+}
+
+@mixin scale-in {
+  animation: scaleIn 0.3s ease-out;
+}
+
+@mixin bounce-in {
+  animation: bounceIn 0.6s ease-out;
+}
+
+@mixin shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }
 
 // Utility Mixins
@@ -174,6 +338,91 @@
       background: darken($border-color, 10%);
     }
   }
+}
+
+// Enhanced Utility Mixins
+@mixin scrollbar-thin {
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba($text-secondary, 0.3);
+    border-radius: 2px;
+    
+    &:hover {
+      background: rgba($text-secondary, 0.5);
+    }
+  }
+}
+
+@mixin focus-ring {
+  outline: none;
+  
+  &:focus-visible {
+    outline: 2px solid $border-focus;
+    outline-offset: 2px;
+  }
+}
+
+@mixin sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@mixin aspect-ratio($width, $height) {
+  position: relative;
+  
+  &::before {
+    display: block;
+    content: "";
+    width: 100%;
+    padding-top: ($height / $width) * 100%;
+  }
+  
+  > * {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+}
+
+// Status Mixins
+@mixin status-success {
+  background: $status-success-light;
+  color: $status-success;
+  border: 1px solid rgba($status-success, 0.2);
+}
+
+@mixin status-error {
+  background: $status-error-light;
+  color: $status-error;
+  border: 1px solid rgba($status-error, 0.2);
+}
+
+@mixin status-warning {
+  background: $status-warning-light;
+  color: $status-warning;
+  border: 1px solid rgba($status-warning, 0.2);
+}
+
+@mixin status-info {
+  background: $status-info-light;
+  color: $status-info;
+  border: 1px solid rgba($status-info, 0.2);
 }
 
 // Keyframe Animations
@@ -206,5 +455,76 @@
   }
   100% {
     opacity: 1;
+  }
+}
+
+// Enhanced Keyframe Animations
+@keyframes slideDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideLeft {
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideRight {
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
   }
 } 

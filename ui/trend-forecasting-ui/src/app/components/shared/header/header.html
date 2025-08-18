@@ -21,6 +21,14 @@
         <mat-icon>api</mat-icon>
         API Tester
       </a>
+      
+      <a mat-button 
+         routerLink="/styling-demo" 
+         routerLinkActive="active"
+         [class.active]="isActive('/styling-demo')">
+        <mat-icon>palette</mat-icon>
+        Styling Demo
+      </a>
     </nav>
   </div>
 </mat-toolbar>

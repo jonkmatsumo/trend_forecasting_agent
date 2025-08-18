@@ -1,0 +1,16 @@
+<div class="notification-overlay" *ngIf="notifications.length > 0">
+  <div class="notification-stack">
+    <app-notification
+      *ngFor="let notification of notifications"
+      [type]="notification.type"
+      [title]="notification.title"
+      [message]="notification.message"
+      [duration]="notification.duration"
+      [autoClose]="notification.autoClose"
+      [dismissible]="notification.dismissible"
+      [actions]="notification.actions"
+      (dismissed)="onNotificationDismissed(notification.id)"
+      (actionClicked)="onActionClicked($event, notification.id)">
+    </app-notification>
+  </div>
+</div> 

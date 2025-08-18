@@ -1,0 +1,46 @@
+<div class="notification-container" 
+     [ngClass]="'notification--' + type"
+     [@notificationAnimation]="animationState"
+     (@notificationAnimation.done)="onAnimationComplete()">
+  
+  <div class="notification-content">
+    <div class="notification-icon">
+      <mat-icon [color]="getIconColor()">
+        {{ getIcon() }}
+      </mat-icon>
+    </div>
+    
+    <div class="notification-body">
+      <div class="notification-title" *ngIf="title">
+        {{ title }}
+      </div>
+      <div class="notification-message">
+        {{ message }}
+      </div>
+      <div class="notification-actions" *ngIf="actions?.length">
+        <button mat-button 
+                *ngFor="let action of actions"
+                [color]="action.color || 'primary'"
+                (click)="handleAction(action)">
+          {{ action.label }}
+        </button>
+      </div>
+    </div>
+    
+    <div class="notification-close" *ngIf="dismissible">
+      <button mat-icon-button 
+              (click)="dismiss()"
+              class="close-button"
+              [attr.aria-label]="'Close notification'">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </div>
+  
+  <div class="notification-progress" *ngIf="autoClose && duration">
+    <div class="progress-bar" 
+         [style.animation-duration]="duration + 'ms'"
+         [@progressAnimation]="animationState">
+    </div>
+  </div>
+</div> 
