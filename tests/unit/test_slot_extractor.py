@@ -990,4 +990,173 @@ class TestSlotExtractor:
         # Regex fields should work despite punctuation
         assert slots.horizon == 7
         assert slots.quantiles == [0.1, 0.9]
-        assert slots.geo == "united states" 
+        assert slots.geo == "united states"
+    
+    def test_b5_remove_redundant_processing_class_level_sets(self):
+        """Test B5.1: Class-level pre-computed sets for efficient lookups."""
+        # Test that stop words sets are pre-computed at class level
+        assert hasattr(self.extractor, '_stop_words_set')
+        assert hasattr(self.extractor, '_question_words_set')
+        
+        # Test that sets are properly initialized
+        assert isinstance(self.extractor._stop_words_set, set)
+        assert isinstance(self.extractor._question_words_set, set)
+        
+        # Test that common stop words are in the set
+        assert 'the' in self.extractor._stop_words_set
+        assert 'and' in self.extractor._stop_words_set
+        assert 'for' in self.extractor._stop_words_set
+        
+        # Test that question words are in the set
+        assert 'what' in self.extractor._question_words_set
+        assert 'how' in self.extractor._question_words_set
+        assert 'when' in self.extractor._question_words_set
+    
+    def test_b5_remove_redundant_processing_efficient_lookups(self):
+        """Test B5.2: Efficient O(1) lookups with pre-computed sets."""
+        # Test that keyword extraction works efficiently with pre-computed sets
+        query = "Forecast trends for Machine Learning and Artificial Intelligence"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        # Should extract keywords efficiently
+        assert "Machine" in slots.keywords
+        assert "Learning" in slots.keywords
+        assert "Artificial" in slots.keywords
+        
+        # Test with stop words to ensure they're filtered out efficiently
+        query = "Forecast the and for trends"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        # Stop words should be filtered out
+        if slots.keywords:
+            assert "the" not in slots.keywords
+            assert "and" not in slots.keywords
+            assert "for" not in slots.keywords
+    
+    def test_b5_remove_redundant_processing_no_redundant_stripping(self):
+        """Test B5.3: No redundant stripping operations."""
+        # Test that normalized input is used directly without redundant processing
+        query = "Forecast trends for 'Python' and 'JavaScript'"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        # Should extract keywords without redundant stripping
+        assert "Python" in slots.keywords
+        assert "JavaScript" in slots.keywords
+        
+        # Test with whitespace variations
+        query = "Forecast   trends   for   'Python'   and   'JavaScript'"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        # Should still extract correctly
+        assert "Python" in slots.keywords
+        assert "JavaScript" in slots.keywords
+    
+    def test_b5_remove_redundant_processing_optimized_case_comparisons(self):
+        """Test B5.4: Optimized case-insensitive comparisons."""
+        # Test that case comparisons are optimized with single .lower() call
+        query = "Forecast trends for MACHINE LEARNING and ARTIFICIAL INTELLIGENCE"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        # Should extract keywords efficiently
+        assert "MACHINE" in slots.keywords
+        assert "LEARNING" in slots.keywords
+        assert "ARTIFICIAL" in slots.keywords
+        
+        # Test with mixed case
+        query = "Forecast trends for Machine Learning and Artificial Intelligence"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        # Should extract keywords efficiently
+        assert "Machine" in slots.keywords
+        assert "Learning" in slots.keywords
+        assert "Artificial" in slots.keywords
+    
+    def test_b5_remove_redundant_processing_performance_improvement(self):
+        """Test B5.5: Performance improvement verification."""
+        # Test that the optimizations don't break functionality
+        # This is a functional test to ensure performance improvements don't cause regressions
+        
+        # Test complex query with multiple optimizations
+        query = "Forecast 'Machine Learning' trends for next week with P10 and P90 in United States Technology category"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        # Should extract all slots correctly
+        assert "Machine Learning" in slots.keywords
+        assert slots.horizon == 7
+        assert slots.quantiles == [0.1, 0.9]
+        assert slots.geo == "united states"
+        assert slots.category == "technology"
+        
+        # Test with multiple stop words to ensure efficient filtering
+        query = "Forecast the and for trends in the and for category"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        
+        # Should filter out stop words efficiently
+        if slots.keywords:
+            for stop_word in ['the', 'and', 'for']:
+                assert stop_word not in slots.keywords
+    
+    def test_b5_remove_redundant_processing_backward_compatibility(self):
+        """Test B5: Backward compatibility with optimized processing."""
+        # Test that all existing functionality still works with optimizations
+        
+        # Test quoted keywords
+        query = 'Forecast "machine learning" and "artificial intelligence"'
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert "machine learning" in slots.keywords
+        assert "artificial intelligence" in slots.keywords
+        
+        # Test single quoted keywords
+        query = "Compare 'python' vs 'javascript'"
+        slots = self.extractor.extract_slots(query, AgentIntent.COMPARE)
+        assert "python" in slots.keywords
+        assert "javascript" in slots.keywords
+        
+        # Test for/about patterns
+        query = "Forecast trends for machine learning next week"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        assert "machine learning" in slots.keywords
+        
+        # Test comparison patterns
+        query = "Compare python vs javascript"
+        slots = self.extractor.extract_slots(query, AgentIntent.COMPARE)
+        assert "python" in slots.keywords
+        assert "javascript" in slots.keywords
+        
+        # Test individual word extraction
+        query = "Forecast trends for AI and ML"
+        slots = self.extractor.extract_slots(query, AgentIntent.FORECAST)
+        # The keyword extraction extracts phrases and individual words
+        assert "Forecast trends for AI" in slots.keywords or "AI" in slots.keywords
+        # ML might be extracted as part of a phrase or individually
+        assert len(slots.keywords) >= 1  # At least some keywords should be extracted
+    
+    def test_b5_remove_redundant_processing_edge_cases(self):
+        """Test B5: Edge cases with optimized processing."""
+        # Test edge cases to ensure optimizations handle them correctly
+        
+        # Test empty query
+        slots = self.extractor.extract_slots("", AgentIntent.FORECAST)
+        assert slots.keywords is None or len(slots.keywords) == 0
+        
+        # Test whitespace only
+        slots = self.extractor.extract_slots("   ", AgentIntent.FORECAST)
+        assert slots.keywords is None or len(slots.keywords) == 0
+        
+        # Test single word
+        slots = self.extractor.extract_slots("Forecast", AgentIntent.FORECAST)
+        # Single words may not be extracted as keywords if they're stop words
+        # The test should check that extraction doesn't fail, not that keywords are extracted
+        assert isinstance(slots, ExtractedSlots)
+        
+        # Test all stop words
+        slots = self.extractor.extract_slots("the and for", AgentIntent.FORECAST)
+        if slots.keywords:
+            assert "the" not in slots.keywords
+            assert "and" not in slots.keywords
+            assert "for" not in slots.keywords
+        
+        # Test very long query
+        long_query = "Forecast " + "very long " * 50 + "trends"
+        slots = self.extractor.extract_slots(long_query, AgentIntent.FORECAST)
+        assert slots.keywords is not None 

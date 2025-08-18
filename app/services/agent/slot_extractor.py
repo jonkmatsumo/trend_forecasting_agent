@@ -49,6 +49,10 @@ class SlotExtractor:
         self.quantile_patterns = self._build_quantile_patterns()
         self.date_patterns = self._build_date_patterns()
         
+        # B5.1: Pre-compute stop words sets for O(1) lookup and case-insensitive comparison
+        self._stop_words_set = {word.lower() for word in ['next', 'in', 'over', 'during', 'the', 'a', 'an', 'this', 'that', 'will', 'is', 'are', 'what', 'how', 'when', 'where', 'why', 'who', 'for', 'with', 'and', 'or', 'but', 'to', 'from', 'by', 'at', 'on', 'up', 'down', 'out', 'off', 'through', 'between', 'among', 'within', 'without', 'against', 'toward', 'towards', 'into', 'onto', 'upon', 'about', 'above', 'below', 'beneath', 'under', 'over', 'across', 'along', 'around', 'behind', 'before', 'after', 'since', 'until', 'while', 'during', 'throughout', 'despite', 'except', 'besides', 'like', 'unlike', 'as', 'than', 'per', 'via', 'versus', 'vs', 'week', 'month', 'year', 'day', 'days', 'weeks', 'months', 'years', 'last', 'first', 'current', 'recent', 'latest', 'previous', 'trends', 'trend', 'data', 'information', 'summary', 'overview', 'insights', 'performance', 'accuracy', 'metrics', 'scores', 'results', 'health', 'working', 'alive', 'okay', 'cache', 'stats', 'statistics', 'list', 'show', 'display', 'models', 'model', 'train', 'build', 'create', 'develop', 'evaluate', 'assess', 'test']}
+        self._question_words_set = {'what', 'how', 'when', 'where', 'why', 'who', 'which'}
+        
     def extract_slots(self, query: str, intent: AgentIntent) -> ExtractedSlots:
         """Extract slots from natural language query.
         
@@ -147,26 +151,26 @@ class SlotExtractor:
         
         # Extract keywords before common stop words - use norm_loose
         # Note: norm_loose preserves case and edge punctuation for better keyword extraction
-        stop_words = ['next', 'in', 'over', 'during', 'the', 'a', 'an', 'this', 'that', 'will', 'is', 'are', 'what', 'how', 'when', 'where', 'why', 'who', 'for', 'with', 'and', 'or', 'but', 'to', 'from', 'by', 'at', 'on', 'up', 'down', 'out', 'off', 'through', 'between', 'among', 'within', 'without', 'against', 'toward', 'towards', 'into', 'onto', 'upon', 'about', 'above', 'below', 'beneath', 'under', 'over', 'across', 'along', 'around', 'behind', 'before', 'after', 'since', 'until', 'while', 'during', 'throughout', 'despite', 'except', 'besides', 'like', 'unlike', 'as', 'than', 'per', 'via', 'versus', 'vs', 'week', 'month', 'year', 'day', 'days', 'weeks', 'months', 'years', 'last', 'first', 'current', 'recent', 'latest', 'previous', 'trends', 'trend', 'data', 'information', 'summary', 'overview', 'insights', 'performance', 'accuracy', 'metrics', 'scores', 'results', 'health', 'working', 'alive', 'okay', 'cache', 'stats', 'statistics', 'list', 'show', 'display', 'models', 'model', 'train', 'build', 'create', 'develop', 'evaluate', 'assess', 'test']
+        # B5.2: Use class-level pre-computed sets for O(1) lookup and case-insensitive comparison
         words = norm_loose.split()
         
         for i, word in enumerate(words):
-            if i < len(words) - 1 and words[i + 1].lower() in stop_words:
+            if i < len(words) - 1 and words[i + 1].lower() in self._stop_words_set:
                 # Check if this looks like a keyword (not a common word)
-                if len(word) > 2 and word.lower() not in stop_words:
+                if len(word) > 2 and word.lower() not in self._stop_words_set:
                     if word not in keywords:
                         keywords.append(word)
         
         # Filter out common question words and stop words
         filtered_keywords = []
         for keyword in keywords:
-            # Clean up the keyword
-            keyword = keyword.strip()
+            # B5.3: Use normalized input directly - no redundant stripping needed
             if not keyword or len(keyword) < 2:
                 continue
                 
-            # Skip if it's a stop word
-            if keyword.lower() in stop_words:
+            # B5.4: Use pre-computed sets for efficient lookups
+            keyword_lower = keyword.lower()
+            if keyword_lower in self._stop_words_set:
                 continue
                 
             # Skip if it's just a single letter or number
@@ -174,13 +178,14 @@ class SlotExtractor:
                 continue
                 
             # Skip if it's a common question word
-            if keyword.lower() in ['what', 'how', 'when', 'where', 'why', 'who', 'which']:
+            if keyword_lower in self._question_words_set:
                 continue
                 
             # Check if this keyword is a substring of any existing keyword
             is_substring = False
             for existing in filtered_keywords:
-                if keyword.lower() in existing.lower() or existing.lower() in keyword.lower():
+                existing_lower = existing.lower()
+                if keyword_lower in existing_lower or existing_lower in keyword_lower:
                     is_substring = True
                     break
             
@@ -193,7 +198,7 @@ class SlotExtractor:
             if ' ' in keyword:  # Multi-word keyword
                 words = keyword.split()
                 for word in words:
-                    if len(word) > 2 and word.lower() not in stop_words:
+                    if len(word) > 2 and word.lower() not in self._stop_words_set:
                         individual_keywords.append(word)
         
         # Combine and deduplicate
