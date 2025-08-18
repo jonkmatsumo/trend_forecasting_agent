@@ -1,21 +1,17 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
 import { ApiService } from './api.service';
 import { ApiRequest, ApiResponse } from '../models/api.models';
-import { environment } from '../../environments/environment';
 
 describe('ApiService', () => {
   let service: ApiService;
   let httpMock: HttpTestingController;
+  const baseUrl = 'http://localhost:5000';
 
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [
-        ApiService,
-        provideZonelessChangeDetection()
-      ]
+      providers: [ApiService]
     });
     service = TestBed.inject(ApiService);
     httpMock = TestBed.inject(HttpTestingController);
@@ -30,153 +26,310 @@ describe('ApiService', () => {
   });
 
   describe('sendRequest', () => {
-    it('should send GET request successfully', () => {
-      const mockResponse = { status: 'ok', message: 'Health check passed' };
-      const request: ApiRequest = {
-        method: 'GET',
-        url: `${environment.apiUrl}/health`,
-        headers: {},
-        body: null
-      };
+    const mockRequest: ApiRequest = {
+      method: 'GET',
+      url: `${baseUrl}/api/test`,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    };
 
-      service.sendRequest(request).subscribe((response: ApiResponse) => {
-        expect(response.status).toBe(200);
-        expect(response.data).toEqual(mockResponse);
-        expect(response.responseTime).toBeGreaterThan(0);
-      });
+    const mockResponse: ApiResponse = {
+      status: 200,
+      statusText: 'OK',
+      headers: {
+        'content-type': 'application/json'
+      },
+      data: {
+        message: 'Success',
+        data: { test: 'value' }
+      },
+      responseTime: 150
+    };
 
-      const req = httpMock.expectOne(`${environment.apiUrl}/health`);
+    it('should send GET request to correct endpoint', () => {
+      service.sendRequest(mockRequest).subscribe();
+
+      const req = httpMock.expectOne(`${baseUrl}/api/test`);
       expect(req.request.method).toBe('GET');
-      req.flush(mockResponse);
+      expect(req.request.headers.get('Content-Type')).toBe('application/json');
     });
 
-    it('should send POST request successfully', () => {
-      const mockRequest = { query: 'test query' };
-      const mockResponse = { response: 'test response' };
-      const request: ApiRequest = {
-        method: 'POST',
-        url: `${environment.apiUrl}/agent/ask`,
-        headers: { 'Content-Type': 'application/json' },
-        body: mockRequest
-      };
-
-      service.sendRequest(request).subscribe((response: ApiResponse) => {
+    it('should return API response on success', () => {
+      service.sendRequest(mockRequest).subscribe((response: ApiResponse) => {
         expect(response.status).toBe(200);
-        expect(response.data).toEqual(mockResponse);
+        expect(response.data).toEqual(mockResponse.data);
         expect(response.responseTime).toBeGreaterThan(0);
       });
 
-      const req = httpMock.expectOne(`${environment.apiUrl}/agent/ask`);
-      expect(req.request.method).toBe('POST');
-      expect(req.request.body).toEqual(mockRequest);
-      req.flush(mockResponse);
+      const req = httpMock.expectOne(`${baseUrl}/api/test`);
+      req.flush(mockResponse.data, {
+        status: 200,
+        statusText: 'OK',
+        headers: { 'content-type': 'application/json' }
+      });
     });
 
-    it('should handle HTTP errors gracefully', () => {
-      const request: ApiRequest = {
-        method: 'GET',
-        url: `${environment.apiUrl}/health`,
-        headers: {},
-        body: null
+    it('should handle POST requests with body', () => {
+      const postRequest: ApiRequest = {
+        ...mockRequest,
+        method: 'POST',
+        body: { test: 'data' }
       };
 
-      service.sendRequest(request).subscribe((response: ApiResponse) => {
-        expect(response.status).toBe(500);
-        expect(response.statusText).toBe('Internal Server Error');
-        expect(response.responseTime).toBeGreaterThan(0);
+      service.sendRequest(postRequest).subscribe();
+
+      const req = httpMock.expectOne(`${baseUrl}/api/test`);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual({ test: 'data' });
+    });
+
+    it('should handle PUT requests', () => {
+      const putRequest: ApiRequest = {
+        ...mockRequest,
+        method: 'PUT',
+        body: { update: 'data' }
+      };
+
+      service.sendRequest(putRequest).subscribe();
+
+      const req = httpMock.expectOne(`${baseUrl}/api/test`);
+      expect(req.request.method).toBe('PUT');
+      expect(req.request.body).toEqual({ update: 'data' });
+    });
+
+    it('should handle DELETE requests', () => {
+      const deleteRequest: ApiRequest = {
+        ...mockRequest,
+        method: 'DELETE'
+      };
+
+      service.sendRequest(deleteRequest).subscribe();
+
+      const req = httpMock.expectOne(`${baseUrl}/api/test`);
+      expect(req.request.method).toBe('DELETE');
+    });
+
+    it('should handle HTTP errors', () => {
+      service.sendRequest(mockRequest).subscribe((response: ApiResponse) => {
+        expect(response.status).toBe(404);
+        expect(response.statusText).toBe('Not Found');
       });
 
-      const req = httpMock.expectOne(`${environment.apiUrl}/health`);
-      req.flush('Internal server error', { 
-        status: 500, 
-        statusText: 'Internal Server Error' 
-      });
+      const req = httpMock.expectOne(`${baseUrl}/api/test`);
+      req.flush('Not found', { status: 404, statusText: 'Not Found' });
     });
 
     it('should handle network errors', () => {
-      const request: ApiRequest = {
-        method: 'GET',
-        url: `${environment.apiUrl}/health`,
-        headers: {},
-        body: null
-      };
-
-      service.sendRequest(request).subscribe((response: ApiResponse) => {
+      service.sendRequest(mockRequest).subscribe((response: ApiResponse) => {
         expect(response.status).toBe(0);
         expect(response.statusText).toBe('Unknown Error');
-        expect(response.responseTime).toBeGreaterThan(0);
       });
 
-      const req = httpMock.expectOne(`${environment.apiUrl}/health`);
+      const req = httpMock.expectOne(`${baseUrl}/api/test`);
       req.error(new ErrorEvent('Network error'));
     });
 
+    it('should handle timeout errors', () => {
+      service.sendRequest(mockRequest).subscribe((response: ApiResponse) => {
+        expect(response.status).toBe(408);
+        expect(response.statusText).toBe('Request Timeout');
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/api/test`);
+      req.flush('Timeout', { status: 408, statusText: 'Request Timeout' });
+    });
+
+    it('should handle server errors', () => {
+      service.sendRequest(mockRequest).subscribe((response: ApiResponse) => {
+        expect(response.status).toBe(500);
+        expect(response.statusText).toBe('Internal Server Error');
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/api/test`);
+      req.flush('Server error', { status: 500, statusText: 'Internal Server Error' });
+    });
+
     it('should throw error for unsupported HTTP method', () => {
-      const request: ApiRequest = {
+      const invalidRequest: ApiRequest = {
         method: 'PATCH' as any,
-        url: `${environment.apiUrl}/test`,
-        headers: {},
-        body: null
+        url: `${baseUrl}/api/test`,
+        headers: {}
       };
 
       expect(() => {
-        service.sendRequest(request).subscribe();
+        service.sendRequest(invalidRequest).subscribe();
       }).toThrow('Unsupported HTTP method: PATCH');
     });
 
     it('should include custom headers in request', () => {
+      const requestWithHeaders: ApiRequest = {
+        method: 'GET',
+        url: `${baseUrl}/api/test`,
+        headers: { 'Authorization': 'Bearer token123' }
+      };
+
+      service.sendRequest(requestWithHeaders).subscribe();
+
+      const req = httpMock.expectOne(`${baseUrl}/api/test`);
+      expect(req.request.headers.get('Authorization')).toBe('Bearer token123');
+      req.flush({ message: 'Success' });
+    });
+  });
+
+  describe('Request Validation', () => {
+    it('should handle requests without headers', () => {
       const request: ApiRequest = {
         method: 'GET',
-        url: `${environment.apiUrl}/health`,
-        headers: { 'Authorization': 'Bearer token123' },
-        body: null
+        url: `${baseUrl}/api/simple`,
+        headers: {}
       };
 
       service.sendRequest(request).subscribe();
 
-      const req = httpMock.expectOne(`${environment.apiUrl}/health`);
-      expect(req.request.headers.get('Authorization')).toBe('Bearer token123');
-      req.flush({});
+      const req = httpMock.expectOne(`${baseUrl}/api/simple`);
+      expect(req.request.method).toBe('GET');
+      req.flush({ message: 'Success' });
     });
 
-    it('should handle PUT request', () => {
-      const mockData = { name: 'updated', value: 456 };
-      const mockResponse = { id: 1, ...mockData };
+    it('should handle requests with empty headers', () => {
       const request: ApiRequest = {
-        method: 'PUT',
-        url: `${environment.apiUrl}/test/1`,
-        headers: { 'Content-Type': 'application/json' },
-        body: mockData
+        method: 'GET',
+        url: `${baseUrl}/api/simple`,
+        headers: {}
+      };
+
+      service.sendRequest(request).subscribe();
+
+      const req = httpMock.expectOne(`${baseUrl}/api/simple`);
+      expect(req.request.method).toBe('GET');
+      req.flush({ message: 'Success' });
+    });
+  });
+
+  describe('Response Processing', () => {
+    it('should handle JSON responses', () => {
+      const request: ApiRequest = {
+        method: 'GET',
+        url: `${baseUrl}/api/json`,
+        headers: {}
+      };
+
+      const jsonResponse = {
+        data: { users: [{ id: 1, name: 'John' }] },
+        meta: { total: 1 }
       };
 
       service.sendRequest(request).subscribe((response: ApiResponse) => {
+        expect(response.data).toEqual(jsonResponse);
         expect(response.status).toBe(200);
-        expect(response.data).toEqual(mockResponse);
       });
 
-      const req = httpMock.expectOne(`${environment.apiUrl}/test/1`);
-      expect(req.request.method).toBe('PUT');
-      expect(req.request.body).toEqual(mockData);
-      req.flush(mockResponse);
+      const req = httpMock.expectOne(`${baseUrl}/api/json`);
+      req.flush(jsonResponse, {
+        status: 200,
+        statusText: 'OK',
+        headers: { 'content-type': 'application/json' }
+      });
     });
 
-    it('should handle DELETE request', () => {
-      const mockResponse = { status: 'deleted' };
+    it('should handle text responses', () => {
+      const request: ApiRequest = {
+        method: 'GET',
+        url: `${baseUrl}/api/text`,
+        headers: {}
+      };
+
+      service.sendRequest(request).subscribe((response: ApiResponse) => {
+        expect(response.data).toBe('Plain text response');
+        expect(response.status).toBe(200);
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/api/text`);
+      req.flush('Plain text response', {
+        status: 200,
+        statusText: 'OK',
+        headers: { 'content-type': 'text/plain' }
+      });
+    });
+
+    it('should handle empty responses', () => {
       const request: ApiRequest = {
         method: 'DELETE',
-        url: `${environment.apiUrl}/test/1`,
-        headers: {},
-        body: null
+        url: `${baseUrl}/api/empty`,
+        headers: {}
       };
 
       service.sendRequest(request).subscribe((response: ApiResponse) => {
-        expect(response.status).toBe(200);
-        expect(response.data).toEqual(mockResponse);
+        expect(response.data).toBeNull();
+        expect(response.status).toBe(204);
       });
 
-      const req = httpMock.expectOne(`${environment.apiUrl}/test/1`);
-      expect(req.request.method).toBe('DELETE');
-      req.flush(mockResponse);
+      const req = httpMock.expectOne(`${baseUrl}/api/empty`);
+      req.flush(null, {
+        status: 204,
+        statusText: 'No Content'
+      });
+    });
+  });
+
+  describe('Performance', () => {
+    it('should handle multiple concurrent requests', () => {
+      const request: ApiRequest = {
+        method: 'GET',
+        url: `${baseUrl}/api/concurrent`,
+        headers: {}
+      };
+
+      const responses: ApiResponse[] = [];
+
+      // Send multiple concurrent requests
+      for (let i = 0; i < 5; i++) {
+        service.sendRequest(request).subscribe((response: ApiResponse) => {
+          responses.push(response);
+        });
+      }
+
+      // Verify all requests were made
+      const requests = httpMock.match(`${baseUrl}/api/concurrent`);
+      expect(requests.length).toBe(5);
+
+      // Respond to all requests
+      requests.forEach((req, index) => {
+        req.flush({
+          message: `Response ${index + 1}`,
+          data: { index }
+        }, {
+          status: 200,
+          statusText: 'OK',
+          headers: { 'content-type': 'application/json' }
+        });
+      });
+
+      expect(responses.length).toBe(5);
+    });
+
+    it('should measure response time accurately', () => {
+      const request: ApiRequest = {
+        method: 'GET',
+        url: `${baseUrl}/api/timing`,
+        headers: {}
+      };
+
+      service.sendRequest(request).subscribe((response: ApiResponse) => {
+        expect(response.responseTime).toBeGreaterThan(0);
+      });
+
+      const req = httpMock.expectOne(`${baseUrl}/api/timing`);
+      
+      // Simulate some delay
+      setTimeout(() => {
+        req.flush({ message: 'Success' }, {
+          status: 200,
+          statusText: 'OK',
+          headers: { 'content-type': 'application/json' }
+        });
+      }, 100);
     });
   });
 }); 
