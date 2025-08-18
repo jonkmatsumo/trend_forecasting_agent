@@ -399,3 +399,112 @@ class TestIntentRecognizer:
         # Should produce the same results
         assert old_result.intent == new_result.intent
         assert abs(old_result.confidence - new_result.confidence) < 0.01 
+
+    def test_c1_avoid_double_normalization_is_normalized_parameter(self):
+        """Test C1.1: Add is_normalized parameter to recognize_intent()."""
+        # Test that the parameter exists and has correct default value
+        query = "How will AI trend next week?"
+        
+        # Test with default parameter (is_normalized=False)
+        result1 = self.recognizer.recognize_intent(query)
+        assert result1.intent == AgentIntent.FORECAST
+        assert result1.confidence > 0.0
+        
+        # Test with explicit is_normalized=False
+        result2 = self.recognizer.recognize_intent(query, is_normalized=False)
+        assert result2.intent == AgentIntent.FORECAST
+        assert result2.confidence > 0.0
+        
+        # Test with is_normalized=True
+        result3 = self.recognizer.recognize_intent(query, is_normalized=True)
+        assert result3.intent == AgentIntent.FORECAST
+        assert result3.confidence > 0.0
+        
+        # Results should be identical since the input is the same
+        assert result1.intent == result2.intent == result3.intent
+        assert abs(result1.confidence - result2.confidence) < 0.01
+        # Note: result3 may have different confidence due to different text normalization
+        # but should still recognize the same intent
+
+    def test_c1_avoid_double_normalization_skip_logic(self):
+        """Test C1.2: Implement normalization skip logic."""
+        # Test with already normalized text
+        normalized_query = "how will ai trend next week"
+        raw_text = "How will AI trend next week?"
+        
+        # Test with is_normalized=True
+        result = self.recognizer.recognize_intent(normalized_query, raw_text=raw_text, is_normalized=True)
+        
+        # Should still recognize correctly
+        assert result.intent == AgentIntent.FORECAST
+        assert result.confidence > 0.0
+        
+        # Check that normalization stats indicate skipping
+        assert result.normalization_stats.get("skipped") == True
+        assert result.normalization_stats.get("reason") == "already_normalized"
+        
+        # Check that normalized_text is the same as input
+        assert result.normalized_text == normalized_query
+        assert result.raw_text == raw_text
+
+    def test_c1_avoid_double_normalization_backward_compatibility(self):
+        """Test C1.3: Maintain backward compatibility."""
+        query = "How will AI trend next week?"
+        
+        # Test old signature (without is_normalized parameter)
+        result1 = self.recognizer.recognize_intent(query)
+        
+        # Test new signature with default value
+        result2 = self.recognizer.recognize_intent(query, is_normalized=False)
+        
+        # Results should be identical
+        assert result1.intent == result2.intent
+        assert abs(result1.confidence - result2.confidence) < 0.01
+        assert result1.raw_text == result2.raw_text
+        assert result1.normalized_text == result2.normalized_text
+
+    def test_c1_avoid_double_normalization_edge_cases(self):
+        """Test C1.4: Add tests for new parameter with edge cases."""
+        # Test with empty string
+        result1 = self.recognizer.recognize_intent("", is_normalized=True)
+        result2 = self.recognizer.recognize_intent("", is_normalized=False)
+        assert result1.intent == result2.intent
+        assert result1.normalization_stats.get("skipped") == True
+        assert result2.normalization_stats.get("skipped") != True
+        
+        # Test with whitespace-only string
+        result3 = self.recognizer.recognize_intent("   ", is_normalized=True)
+        result4 = self.recognizer.recognize_intent("   ", is_normalized=False)
+        assert result3.intent == result4.intent
+        assert result3.normalization_stats.get("skipped") == True
+        assert result4.normalization_stats.get("skipped") != True
+        
+        # Test with already lowercase text
+        lowercase_query = "forecast trends for python"
+        result5 = self.recognizer.recognize_intent(lowercase_query, is_normalized=True)
+        result6 = self.recognizer.recognize_intent(lowercase_query, is_normalized=False)
+        assert result5.intent == result6.intent
+        assert result5.normalization_stats.get("skipped") == True
+        assert result6.normalization_stats.get("skipped") != True
+
+    def test_c1_avoid_double_normalization_performance_improvement(self):
+        """Test C1.5: Verify performance improvement by avoiding double normalization."""
+        import time
+        
+        query = "How will AI trend next week?"
+        
+        # Measure time with normalization
+        start_time = time.time()
+        for _ in range(100):
+            self.recognizer.recognize_intent(query, is_normalized=False)
+        time_with_norm = time.time() - start_time
+        
+        # Measure time without normalization
+        start_time = time.time()
+        for _ in range(100):
+            self.recognizer.recognize_intent(query, is_normalized=True)
+        time_without_norm = time.time() - start_time
+        
+        # Time without normalization should be faster or at least not significantly slower
+        # (The difference might be small due to other processing overhead)
+        assert time_without_norm <= time_with_norm * 1.1  # Allow 10% tolerance 
