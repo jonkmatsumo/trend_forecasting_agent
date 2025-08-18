@@ -1,67 +1,70 @@
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
+
 .chat-container {
-  display: flex;
-  flex-direction: column;
+  @include flex-column;
   height: 100vh;
-  max-width: 800px;
+  max-width: 900px;
   margin: 0 auto;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  background: $surface-color;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-medium;
   overflow: hidden;
+  @include fade-in;
 }
 
 .chat-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, $primary-color 0%, darken($primary-color, 15%) 100%);
   color: white;
-  padding: 20px;
+  padding: $spacing-xl;
   text-align: center;
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+  }
 
   h2 {
-    margin: 0 0 8px 0;
-    font-size: 24px;
-    font-weight: 600;
+    @include heading-2;
+    color: white;
+    margin-bottom: $spacing-sm;
   }
 
   p {
+    @include body-text;
+    color: rgba(255, 255, 255, 0.9);
     margin: 0;
-    opacity: 0.9;
-    font-size: 14px;
   }
 }
 
 .messages-container {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
-  background: #f8f9fa;
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: #f1f1f1;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 3px;
-  }
+  padding: $spacing-lg;
+  background: $background-color;
+  @include scrollbar;
 }
 
 .message {
-  margin-bottom: 16px;
-  display: flex;
-  flex-direction: column;
+  margin-bottom: $spacing-md;
+  @include flex-column;
+  @include slide-up;
 
   &--user {
     align-items: flex-end;
 
     .message-content {
-      background: #007bff;
+      background: linear-gradient(135deg, $primary-color 0%, darken($primary-color, 10%) 100%);
       color: white;
-      border-radius: 18px 18px 4px 18px;
-      max-width: 70%;
+      border-radius: $border-radius-xl $border-radius-xl $border-radius-sm $border-radius-xl;
+      max-width: 75%;
+      box-shadow: $shadow-light;
     }
   }
 
@@ -69,11 +72,12 @@
     align-items: flex-start;
 
     .message-content {
-      background: white;
-      color: #333;
-      border-radius: 18px 18px 18px 4px;
-      max-width: 70%;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      background: $surface-color;
+      color: $text-primary;
+      border-radius: $border-radius-xl $border-radius-xl $border-radius-xl $border-radius-sm;
+      max-width: 75%;
+      box-shadow: $shadow-light;
+      border: 1px solid $border-light;
     }
   }
 
@@ -81,12 +85,13 @@
     align-items: center;
 
     .message-content {
-      background: #e9ecef;
-      color: #6c757d;
-      border-radius: 18px;
+      background: rgba($info-color, 0.1);
+      color: $info-color;
+      border-radius: $border-radius-xl;
       max-width: 80%;
       text-align: center;
       font-style: italic;
+      border: 1px solid rgba($info-color, 0.2);
     }
   }
 
@@ -94,63 +99,70 @@
     align-items: center;
 
     .message-content {
-      background: #f8d7da;
-      color: #721c24;
-      border-radius: 18px;
+      background: rgba($error-color, 0.1);
+      color: $error-color;
+      border-radius: $border-radius-xl;
       max-width: 80%;
       text-align: center;
+      border: 1px solid rgba($error-color, 0.2);
     }
   }
 }
 
 .message-content {
-  padding: 12px 16px;
+  padding: $spacing-md $spacing-lg;
   word-wrap: break-word;
+  position: relative;
 }
 
 .message-text {
-  line-height: 1.4;
-  margin-bottom: 8px;
+  line-height: 1.5;
+  margin-bottom: $spacing-sm;
+  font-size: 0.95rem;
 }
 
 .message-data {
-  margin-top: 8px;
-  padding: 8px;
+  margin-top: $spacing-sm;
+  padding: $spacing-sm;
   background: rgba(0, 0, 0, 0.05);
-  border-radius: 4px;
-  font-size: 12px;
-  font-family: 'Courier New', monospace;
+  border-radius: $border-radius-sm;
+  font-size: 0.875rem;
+  font-family: $font-family-mono;
   overflow-x: auto;
+  border: 1px solid $border-light;
 
   pre {
     margin: 0;
     white-space: pre-wrap;
+    line-height: 1.4;
   }
 }
 
 .message-metadata {
-  margin-top: 8px;
-  font-size: 12px;
+  margin-top: $spacing-sm;
+  font-size: 0.75rem;
   opacity: 0.7;
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
 }
 
 .message-timestamp {
-  font-size: 11px;
-  color: #6c757d;
-  margin-top: 4px;
-  padding: 0 4px;
+  font-size: 0.75rem;
+  color: $text-secondary;
+  margin-top: $spacing-xs;
+  padding: 0 $spacing-xs;
 }
 
 .typing-indicator {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 0;
+  @include flex-center;
+  gap: $spacing-xs;
+  padding: $spacing-sm 0;
 
   span {
     width: 8px;
     height: 8px;
-    background: #007bff;
+    background: $primary-color;
     border-radius: 50%;
     animation: typing 1.4s infinite ease-in-out;
 
@@ -171,11 +183,11 @@
 }
 
 .input-container {
-  padding: 20px;
-  background: white;
-  border-top: 1px solid #e9ecef;
-  display: flex;
-  gap: 12px;
+  padding: $spacing-lg;
+  background: $surface-color;
+  border-top: 1px solid $border-color;
+  @include flex-center;
+  gap: $spacing-md;
   align-items: flex-end;
 
   .full-width {
@@ -184,31 +196,71 @@
 
   button {
     height: 56px;
-    min-width: 80px;
+    min-width: 100px;
+    border-radius: $border-radius-md;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: $shadow-medium;
+    }
+    
+    &:disabled {
+      transform: none;
+      box-shadow: none;
+    }
+  }
+  
+  mat-form-field {
+    .mat-mdc-form-field-wrapper {
+      padding-bottom: 0;
+    }
   }
 }
 
 // Responsive design
-@media (max-width: 768px) {
+@include mobile {
   .chat-container {
     height: 100vh;
     border-radius: 0;
     margin: 0;
+    max-width: none;
+  }
+
+  .chat-header {
+    padding: $spacing-lg;
+    
+    h2 {
+      font-size: 1.5rem;
+    }
+  }
+
+  .messages-container {
+    padding: $spacing-md;
   }
 
   .message {
     &--user .message-content,
     &--agent .message-content {
-      max-width: 85%;
+      max-width: 90%;
     }
   }
 
   .input-container {
     flex-direction: column;
     align-items: stretch;
+    padding: $spacing-md;
 
     button {
       height: 48px;
+      min-width: auto;
     }
+  }
+}
+
+@include tablet {
+  .chat-container {
+    max-width: 800px;
   }
 }

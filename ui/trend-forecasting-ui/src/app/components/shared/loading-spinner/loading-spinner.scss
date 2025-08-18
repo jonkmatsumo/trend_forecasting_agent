@@ -1,0 +1,93 @@
+@import '../../../../styles/variables';
+@import '../../../../styles/mixins';
+
+.loading-container {
+  @include flex-center;
+  padding: $spacing-lg;
+  @include fade-in;
+
+  &.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: $z-index-modal;
+    backdrop-filter: blur(2px);
+  }
+}
+
+.spinner-content {
+  @include flex-column-center;
+  gap: $spacing-md;
+  text-align: center;
+  background: $surface-color;
+  padding: $spacing-xl;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-medium;
+  @include slide-up;
+
+  .overlay & {
+    background: $surface-color;
+    min-width: 200px;
+  }
+}
+
+.spinner {
+  margin: 0 auto;
+}
+
+.loading-message {
+  @include body-text;
+  color: $text-secondary;
+  margin: 0;
+  font-weight: 500;
+  max-width: 200px;
+  word-wrap: break-word;
+}
+
+// Size-specific styles
+.loading-container {
+  &[class*="small"] .spinner-content {
+    padding: $spacing-md;
+  }
+
+  &[class*="large"] .spinner-content {
+    padding: $spacing-xxl;
+  }
+}
+
+// Responsive design
+@include mobile {
+  .loading-container {
+    padding: $spacing-md;
+
+    &.overlay {
+      padding: $spacing-sm;
+    }
+  }
+
+  .spinner-content {
+    padding: $spacing-lg;
+
+    .overlay & {
+      min-width: 160px;
+    }
+  }
+
+  .loading-message {
+    font-size: 0.875rem;
+    max-width: 160px;
+  }
+}
+
+@include tablet {
+  .spinner-content {
+    padding: $spacing-xl;
+
+    .overlay & {
+      min-width: 180px;
+    }
+  }
+}

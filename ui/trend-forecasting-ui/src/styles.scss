@@ -1,10 +1,13 @@
-
 // Include theming for Angular Material with `mat.theme()`.
 // This Sass mixin will define CSS variables that are used for styling Angular Material
 // components according to the Material 3 design spec.
 // Learn more about theming and how to use it for your application's
 // custom components at https://material.angular.dev/guide/theming
 @use '@angular/material' as mat;
+
+// Import global styles
+@import 'styles/variables';
+@import 'styles/mixins';
 
 html {
   @include mat.theme((
@@ -32,8 +35,87 @@ body {
 
   // Reset the user agent margin.
   margin: 0;
+  font-family: $font-family-primary;
 }
-/* You can add global styles to this file, and also import other style files */
 
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+// Global styles
+* {
+  box-sizing: border-box;
+}
+
+html, body { 
+  height: 100%; 
+}
+
+body { 
+  margin: 0; 
+  font-family: $font-family-primary;
+  background-color: $background-color;
+  color: $text-primary;
+}
+
+// Container classes
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 $spacing-md;
+}
+
+.full-width {
+  width: 100%;
+}
+
+// Utility classes
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-left { text-align: left; }
+
+.mb-xs { margin-bottom: $spacing-xs; }
+.mb-sm { margin-bottom: $spacing-sm; }
+.mb-md { margin-bottom: $spacing-md; }
+.mb-lg { margin-bottom: $spacing-lg; }
+.mb-xl { margin-bottom: $spacing-xl; }
+
+.mt-xs { margin-top: $spacing-xs; }
+.mt-sm { margin-top: $spacing-sm; }
+.mt-md { margin-top: $spacing-md; }
+.mt-lg { margin-top: $spacing-lg; }
+.mt-xl { margin-top: $spacing-xl; }
+
+.p-xs { padding: $spacing-xs; }
+.p-sm { padding: $spacing-sm; }
+.p-md { padding: $spacing-md; }
+.p-lg { padding: $spacing-lg; }
+.p-xl { padding: $spacing-xl; }
+
+// Typography utility classes
+.heading-1 { @include heading-1; }
+.heading-2 { @include heading-2; }
+.heading-3 { @include heading-3; }
+.body-text { @include body-text; }
+.caption-text { @include caption-text; }
+
+// Flex utility classes
+.flex { display: flex; }
+.flex-center { @include flex-center; }
+.flex-between { @include flex-between; }
+.flex-column { @include flex-column; }
+.flex-column-center { @include flex-column-center; }
+
+// Card utility classes
+.card { @include card; }
+.card-hover { @include card-hover; }
+
+// Animation utility classes
+.fade-in { @include fade-in; }
+.slide-up { @include slide-up; }
+.pulse { @include pulse; }
+
+// Responsive utility classes
+@include mobile {
+  .hide-mobile { display: none !important; }
+}
+
+@include desktop {
+  .hide-desktop { display: none !important; }
+}

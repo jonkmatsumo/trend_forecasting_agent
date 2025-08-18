@@ -1,60 +1,88 @@
+@import '../../../../styles/variables';
+@import '../../../../styles/mixins';
+
 .header-toolbar {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 1000;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: $z-index-fixed;
+  box-shadow: $shadow-light;
+  background: linear-gradient(135deg, $primary-color 0%, darken($primary-color, 10%) 100%);
+  @include fade-in;
 }
 
 .toolbar-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  @include flex-between;
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 16px;
+  padding: 0 $spacing-md;
+  height: 64px;
 }
 
 .logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  @include flex-center;
+  gap: $spacing-sm;
   
   .app-title {
-    font-size: 18px;
-    font-weight: 500;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: white;
+    @include truncate;
+  }
+  
+  mat-icon {
+    color: white;
+    font-size: 1.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
   }
 }
 
 .navigation {
-  display: flex;
-  gap: 8px;
+  @include flex-center;
+  gap: $spacing-sm;
   
   a {
-    display: flex;
-    align-items: center;
-    gap: 4px;
+    @include flex-center;
+    gap: $spacing-xs;
     text-decoration: none;
     color: rgba(255, 255, 255, 0.87);
-    transition: color 0.2s;
+    transition: all 0.2s ease;
+    padding: $spacing-sm $spacing-md;
+    border-radius: $border-radius-sm;
+    font-weight: 500;
+    min-height: 40px;
     
     &:hover {
       color: white;
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateY(-1px);
     }
     
     &.active {
       color: white;
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    mat-icon {
+      font-size: 1.25rem;
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+    
+    span {
+      font-size: 0.875rem;
     }
   }
 }
 
 // Responsive design
-@media (max-width: 768px) {
+@include mobile {
   .toolbar-content {
-    padding: 0 8px;
+    padding: 0 $spacing-sm;
   }
   
   .app-title {
@@ -62,11 +90,23 @@
   }
   
   .navigation a {
-    min-width: auto;
-    padding: 0 8px;
+    min-width: 48px;
+    padding: $spacing-sm;
     
     span {
       display: none;
     }
+    
+    mat-icon {
+      font-size: 1.5rem;
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+  }
+}
+
+@include tablet {
+  .toolbar-content {
+    padding: 0 $spacing-md;
   }
 }

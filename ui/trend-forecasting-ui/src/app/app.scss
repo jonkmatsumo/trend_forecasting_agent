@@ -1,11 +1,33 @@
+@import '../styles/variables';
+@import '../styles/mixins';
+
 .app-container {
   height: 100vh;
-  display: flex;
-  flex-direction: column;
+  @include flex-column;
+  background: $background-color;
 }
 
 .main-content {
   flex: 1;
   margin-top: 64px; // Height of the header
   overflow: hidden;
+  position: relative;
+  
+  // Add a subtle gradient overlay
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100px;
+    background: linear-gradient(180deg, rgba($primary-color, 0.02) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  > * {
+    position: relative;
+    z-index: 1;
+  }
 }

@@ -1,0 +1,43 @@
+<nav class="sidebar" [class.collapsed]="collapsed">
+  <div class="sidebar-header">
+    <h3 *ngIf="!collapsed">Navigation</h3>
+    <mat-icon *ngIf="collapsed" class="menu-icon">menu</mat-icon>
+  </div>
+
+  <mat-nav-list class="sidebar-list">
+    <a 
+      mat-list-item 
+      *ngFor="let item of items" 
+      [routerLink]="item.route"
+      routerLinkActive="active"
+      [class.disabled]="item.disabled"
+      (click)="onItemClick(item)"
+      [matTooltip]="collapsed ? item.label : ''"
+      [matTooltipPosition]="'right'"
+      class="sidebar-item"
+    >
+      <mat-icon matListItemIcon [class.active-icon]="isActive(item.route)">
+        {{ item.icon }}
+      </mat-icon>
+      
+      <span matListItemTitle *ngIf="!collapsed" class="item-label">
+        {{ item.label }}
+      </span>
+      
+      <span 
+        *ngIf="item.badge && !collapsed" 
+        class="badge"
+        [class.badge-primary]="isActive(item.route)"
+      >
+        {{ item.badge }}
+      </span>
+    </a>
+  </mat-nav-list>
+
+  <mat-divider *ngIf="!collapsed"></mat-divider>
+  
+  <div class="sidebar-footer" *ngIf="!collapsed">
+    <p class="footer-text">Trend Forecasting Agent</p>
+    <p class="version-text">v1.0.0</p>
+  </div>
+</nav>

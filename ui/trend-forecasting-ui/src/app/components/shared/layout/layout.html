@@ -1,0 +1,44 @@
+<div class="layout-container">
+  <!-- Header -->
+  <app-header></app-header>
+
+  <!-- Main Layout -->
+  <div class="main-layout">
+    <!-- Sidebar -->
+    <app-sidebar 
+      *ngIf="showSidebar"
+      [items]="sidebarItems"
+      [collapsed]="sidebarCollapsed"
+      [activeRoute]="activeRoute"
+      (itemClick)="onSidebarItemClick($event)"
+      class="sidebar"
+    ></app-sidebar>
+
+    <!-- Content Area -->
+    <main class="content-area">
+      <!-- Loading Overlay -->
+      <app-loading-spinner 
+        *ngIf="loading"
+        [overlay]="true"
+        [message]="loadingMessage"
+        size="large"
+      ></app-loading-spinner>
+
+      <!-- Router Outlet -->
+      <div class="content-wrapper">
+        <router-outlet></router-outlet>
+      </div>
+    </main>
+  </div>
+
+  <!-- Mobile Sidebar Toggle -->
+  <button 
+    *ngIf="showSidebar"
+    mat-fab 
+    class="sidebar-toggle"
+    (click)="onSidebarToggle()"
+    [matTooltip]="sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'"
+  >
+    <mat-icon>{{ sidebarCollapsed ? 'menu' : 'menu_open' }}</mat-icon>
+  </button>
+</div>

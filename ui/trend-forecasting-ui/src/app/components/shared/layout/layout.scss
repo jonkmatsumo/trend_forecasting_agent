@@ -1,0 +1,99 @@
+@import '../../../../styles/variables';
+@import '../../../../styles/mixins';
+
+.layout-container {
+  height: 100vh;
+  @include flex-column;
+  overflow: hidden;
+}
+
+.main-layout {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+.sidebar {
+  flex-shrink: 0;
+  z-index: $z-index-sticky;
+}
+
+.content-area {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  background: $background-color;
+}
+
+.content-wrapper {
+  height: 100%;
+  overflow-y: auto;
+  @include scrollbar;
+}
+
+.sidebar-toggle {
+  position: fixed;
+  bottom: $spacing-lg;
+  right: $spacing-lg;
+  z-index: $z-index-fixed;
+  background: $primary-color;
+  color: white;
+  box-shadow: $shadow-medium;
+  transition: all 0.2s ease;
+  @include fade-in;
+
+  &:hover {
+    transform: scale(1.1);
+    box-shadow: $shadow-heavy;
+  }
+
+  mat-icon {
+    color: white;
+  }
+}
+
+// Responsive design
+@include mobile {
+  .main-layout {
+    @include flex-column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 200px;
+  }
+
+  .content-area {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .sidebar-toggle {
+    bottom: $spacing-md;
+    right: $spacing-md;
+    width: 48px;
+    height: 48px;
+
+    mat-icon {
+      font-size: 1.25rem;
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+  }
+}
+
+@include tablet {
+  .sidebar-toggle {
+    bottom: $spacing-md;
+    right: $spacing-md;
+  }
+}
+
+// Hide sidebar toggle on desktop when sidebar is always visible
+@include desktop {
+  .sidebar-toggle {
+    display: none;
+  }
+}
