@@ -1,5 +1,5 @@
-@import '../../../styles/variables';
-@import '../../../styles/mixins';
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
 
 .api-tester-container {
   @include flex-center;
@@ -21,7 +21,7 @@
     margin: 0;
     padding: $spacing-lg;
     border-bottom: 1px solid $border-color;
-    background: linear-gradient(135deg, $primary-color 0%, darken($primary-color, 10%) 100%);
+    background: linear-gradient(135deg, $primary-color 0%, $primary-dark 100%);
     color: white;
     position: sticky;
     top: 0;

@@ -1,5 +1,5 @@
-@import '../../../../styles/variables';
-@import '../../../../styles/mixins';
+@use '../../../../styles/variables' as *;
+@use '../../../../styles/mixins' as *;
 
 .notification-container {
   @include card-glass;
@@ -136,7 +136,7 @@
   }
   
   .notification-progress .progress-bar {
-    background: linear-gradient(90deg, $status-success, lighten($status-success, 20%));
+    background: linear-gradient(90deg, $status-success, $status-success-lighter);
   }
 }
 
@@ -150,7 +150,7 @@
   }
   
   .notification-progress .progress-bar {
-    background: linear-gradient(90deg, $status-error, lighten($status-error, 20%));
+    background: linear-gradient(90deg, $status-error, $status-error-lighter);
   }
 }
 
@@ -164,7 +164,7 @@
   }
   
   .notification-progress .progress-bar {
-    background: linear-gradient(90deg, $status-warning, lighten($status-warning, 20%));
+    background: linear-gradient(90deg, $status-warning, $status-warning-lighter);
   }
 }
 
@@ -178,7 +178,7 @@
   }
   
   .notification-progress .progress-bar {
-    background: linear-gradient(90deg, $status-info, lighten($status-info, 20%));
+    background: linear-gradient(90deg, $status-info, $status-info-lighter);
   }
 }
 

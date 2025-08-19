@@ -1,3 +1,5 @@
+@use "sass:color";
+
 // Color Variables
 $primary-color: #3f51b5;
 $secondary-color: #ff4081;
@@ -7,10 +9,10 @@ $warning-color: #ff9800;
 $info-color: #2196f3;
 
 // Enhanced Color Palette
-$primary-light: lighten($primary-color, 20%);
-$primary-dark: darken($primary-color, 20%);
-$secondary-light: lighten($secondary-color, 20%);
-$secondary-dark: darken($secondary-color, 20%);
+$primary-light: color.adjust($primary-color, $lightness: 20%);
+$primary-dark: color.adjust($primary-color, $lightness: -20%);
+$secondary-light: color.adjust($secondary-color, $lightness: 20%);
+$secondary-dark: color.adjust($secondary-color, $lightness: -20%);
 
 // Background Colors
 $background-color: #fafafa;
@@ -148,4 +150,10 @@ $status-info: $info-color;
 $status-success-light: rgba($success-color, 0.1);
 $status-error-light: rgba($error-color, 0.1);
 $status-warning-light: rgba($warning-color, 0.1);
-$status-info-light: rgba($info-color, 0.1); 
+$status-info-light: rgba($info-color, 0.1);
+
+// Status Color Variants for Gradients
+$status-success-lighter: color.adjust($success-color, $lightness: 20%);
+$status-error-lighter: color.adjust($error-color, $lightness: 20%);
+$status-warning-lighter: color.adjust($warning-color, $lightness: 20%);
+$status-info-lighter: color.adjust($info-color, $lightness: 20%); 

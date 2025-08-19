@@ -1,5 +1,6 @@
 // Import variables
-@import 'variables';
+@use 'sass:color';
+@use 'variables' as *;
 
 // Flexbox Mixins
 @mixin flex-center {
@@ -119,7 +120,7 @@
   color: white;
   
   &:hover {
-    background: darken($primary-color, 10%);
+    background: $primary-dark;
   }
   
   &:disabled {
@@ -160,7 +161,7 @@
   border: none;
   
   &:hover {
-    background: linear-gradient(135deg, $primary-dark 0%, darken($primary-dark, 10%) 100%);
+    background: linear-gradient(135deg, $primary-dark 0%, $primary-color 100%);
     transform: translateY(-1px);
     box-shadow: $shadow-medium;
   }
@@ -335,7 +336,7 @@
     border-radius: 3px;
     
     &:hover {
-      background: darken($border-color, 10%);
+      background: $border-dark;
     }
   }
 }

@@ -356,17 +356,17 @@ describe('ConfigService', () => {
 
   describe('Configuration Utilities', () => {
     it('should merge configurations', () => {
-      const config1: any = { a: 1, b: 2 };
-      const config2: any = { b: 3, c: 4 };
+      const config1 = { a: 1, b: 2 } as any;
+      const config2 = { b: 3, c: 4 } as any;
       const merged = service.mergeConfig(config1, config2);
-      expect(merged).toEqual({ a: 1, b: 3, c: 4 });
+      expect(merged).toEqual({ a: 1, b: 3, c: 4 } as any);
     });
 
     it('should deep merge configurations', () => {
-      const config1: any = { a: { b: 1, c: 2 } };
-      const config2: any = { a: { c: 3, d: 4 } };
+      const config1 = { a: { b: 1, c: 2 } } as any;
+      const config2 = { a: { c: 3, d: 4 } } as any;
       const merged = service.deepMergeConfig(config1, config2);
-      expect(merged).toEqual({ a: { b: 1, c: 3, d: 4 } });
+      expect(merged).toEqual({ a: { b: 1, c: 3, d: 4 } } as any);
     });
 
     it('should clone configuration', () => {

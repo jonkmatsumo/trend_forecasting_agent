@@ -1,5 +1,5 @@
-@import '../../../styles/variables';
-@import '../../../styles/mixins';
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
 
 .chat-container {
   @include flex-column;
@@ -14,7 +14,7 @@
 }
 
 .chat-header {
-  background: linear-gradient(135deg, $primary-color 0%, darken($primary-color, 15%) 100%);
+  background: linear-gradient(135deg, $primary-color 0%, $primary-dark 100%);
   color: white;
   padding: $spacing-xl;
   text-align: center;
@@ -60,7 +60,7 @@
     align-items: flex-end;
 
     .message-content {
-      background: linear-gradient(135deg, $primary-color 0%, darken($primary-color, 10%) 100%);
+      background: linear-gradient(135deg, $primary-color 0%, $primary-dark 100%);
       color: white;
       border-radius: $border-radius-xl $border-radius-xl $border-radius-sm $border-radius-xl;
       max-width: 75%;

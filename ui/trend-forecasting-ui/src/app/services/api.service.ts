@@ -59,7 +59,7 @@ export class ApiService {
         throw new Error(`Unsupported HTTP method: ${request.method}`);
     }
 
-    return this.errorHandler.createRetryableRequest(
+    return this.errorHandler.createRetryableRequest<ApiResponse>(
       new Observable(observer => {
         httpCall.subscribe({
           next: (response) => {
@@ -85,14 +85,7 @@ export class ApiService {
             observer.complete();
           }
         });
-      }).pipe(
-        catchError((error: HttpErrorResponse) => 
-          this.errorHandler.handleHttpError(error, {
-            customMessage: 'API request failed',
-            retryAttempts: 2
-          })
-        )
-      ),
+      }),
       { retryAttempts: 2, customMessage: 'API request failed' }
     );
   }

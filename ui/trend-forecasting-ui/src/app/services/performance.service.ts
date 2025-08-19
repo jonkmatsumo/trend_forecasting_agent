@@ -104,8 +104,9 @@ export class PerformanceService {
       const clsObserver = new PerformanceObserver((list) => {
         let cls = 0;
         for (const entry of list.getEntries()) {
-          if (!entry.hadRecentInput) {
-            cls += (entry as any).value;
+          const layoutShiftEntry = entry as any;
+          if (!layoutShiftEntry.hadRecentInput) {
+            cls += layoutShiftEntry.value;
           }
         }
         metrics.cumulativeLayoutShift = cls;
@@ -115,7 +116,7 @@ export class PerformanceService {
       // First Input Delay
       const fidObserver = new PerformanceObserver((list) => {
         const entries = list.getEntries();
-        const fid = entries[0];
+        const fid = entries[0] as any;
         if (fid) {
           metrics.firstInputDelay = fid.processingStart - fid.startTime;
         }
@@ -162,7 +163,7 @@ export class PerformanceService {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
             const img = entry.target as HTMLImageElement;
-            img.src = img.dataset.src || '';
+            img.src = img.dataset['src'] || '';
             img.classList.remove('lazy');
             observer.unobserve(img);
           }

@@ -19,29 +19,15 @@ export class AgentService {
   ) {}
 
   sendMessage(request: AgentRequest): Observable<AgentResponse> {
-    return this.errorHandler.createRetryableRequest(
-      this.http.post<AgentResponse>(`${this.baseUrl}/chat`, request).pipe(
-        catchError((error: HttpErrorResponse) => 
-          this.errorHandler.handleHttpError(error, {
-            customMessage: 'Failed to send message to agent',
-            retryAttempts: 2
-          })
-        )
-      ),
+    return this.errorHandler.createRetryableRequest<AgentResponse>(
+      this.http.post<AgentResponse>(`${this.baseUrl}/chat`, request),
       { retryAttempts: 2, customMessage: 'Failed to send message to agent' }
     );
   }
 
   askAgent(request: AgentRequest): Observable<AgentResponse> {
-    return this.errorHandler.createRetryableRequest(
-      this.http.post<AgentResponse>(`${this.baseUrl}/ask`, request).pipe(
-        catchError((error: HttpErrorResponse) => 
-          this.errorHandler.handleHttpError(error, {
-            customMessage: 'Failed to get response from agent',
-            retryAttempts: 3
-          })
-        )
-      ),
+    return this.errorHandler.createRetryableRequest<AgentResponse>(
+      this.http.post<AgentResponse>(`${this.baseUrl}/ask`, request),
       { retryAttempts: 3, customMessage: 'Failed to get response from agent' }
     );
   }
@@ -75,43 +61,22 @@ export class AgentService {
   }
 
   getAgentConfig(): Observable<AgentConfig> {
-    return this.errorHandler.createRetryableRequest(
-      this.http.get<AgentConfig>(`${this.baseUrl}/config`).pipe(
-        catchError((error: HttpErrorResponse) => 
-          this.errorHandler.handleHttpError(error, {
-            customMessage: 'Failed to get agent configuration',
-            retryAttempts: 2
-          })
-        )
-      ),
+    return this.errorHandler.createRetryableRequest<AgentConfig>(
+      this.http.get<AgentConfig>(`${this.baseUrl}/config`),
       { retryAttempts: 2, customMessage: 'Failed to get agent configuration' }
     );
   }
 
   updateAgentConfig(config: AgentConfig): Observable<AgentConfig> {
-    return this.errorHandler.createRetryableRequest(
-      this.http.put<AgentConfig>(`${this.baseUrl}/config`, config).pipe(
-        catchError((error: HttpErrorResponse) => 
-          this.errorHandler.handleHttpError(error, {
-            customMessage: 'Failed to update agent configuration',
-            retryAttempts: 2
-          })
-        )
-      ),
+    return this.errorHandler.createRetryableRequest<AgentConfig>(
+      this.http.put<AgentConfig>(`${this.baseUrl}/config`, config),
       { retryAttempts: 2, customMessage: 'Failed to update agent configuration' }
     );
   }
 
   getChatHistory(): Observable<ChatMessage[]> {
-    return this.errorHandler.createRetryableRequest(
-      this.http.get<ChatMessage[]>(`${this.baseUrl}/chat/history`).pipe(
-        catchError((error: HttpErrorResponse) => 
-          this.errorHandler.handleHttpError(error, {
-            customMessage: 'Failed to get chat history',
-            retryAttempts: 2
-          })
-        )
-      ),
+    return this.errorHandler.createRetryableRequest<ChatMessage[]>(
+      this.http.get<ChatMessage[]>(`${this.baseUrl}/chat/history`),
       { retryAttempts: 2, customMessage: 'Failed to get chat history' }
     );
   }

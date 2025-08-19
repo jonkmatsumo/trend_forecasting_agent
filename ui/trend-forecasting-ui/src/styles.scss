@@ -6,8 +6,9 @@
 @use '@angular/material' as mat;
 
 // Import global styles
-@import 'styles/variables';
-@import 'styles/mixins';
+@use "sass:color";
+@use 'styles/variables' as *;
+@use 'styles/mixins' as *;
 
 html {
   @include mat.theme((
@@ -454,7 +455,7 @@ body {
   border-radius: 4px;
   
   &:hover {
-    background: darken($border-color, 10%);
+    background: color.adjust($border-color, $lightness: -10%);
   }
 }
 

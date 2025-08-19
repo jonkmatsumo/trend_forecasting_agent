@@ -47,6 +47,7 @@ module.exports = function (config) {
     restartOnFileChange: true,
     // Exclude model files from testing (they are TypeScript interfaces with no logic)
     files: [
+      'src/test-setup.ts',
       'src/**/*.spec.ts',
       'src/**/*.spec.js'
     ],
