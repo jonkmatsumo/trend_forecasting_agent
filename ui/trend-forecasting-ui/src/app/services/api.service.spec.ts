@@ -1,24 +1,44 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { ApiService } from './api.service';
+import { ErrorHandlerService } from './error-handler.service';
+import { ValidationService } from './validation.service';
 import { ApiRequest, ApiResponse } from '../models/api.models';
 
 describe('ApiService', () => {
   let service: ApiService;
   let httpMock: HttpTestingController;
+  let errorHandler: jasmine.SpyObj<ErrorHandlerService>;
+  let validationService: jasmine.SpyObj<ValidationService>;
   const baseUrl = 'http://localhost:5000';
 
   beforeEach(() => {
+    const errorHandlerSpy = jasmine.createSpyObj('ErrorHandlerService', ['handleValidationError', 'createRetryableRequest']);
+    const validationServiceSpy = jasmine.createSpyObj('ValidationService', ['validateApiRequest']);
+
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [ApiService]
+      providers: [
+        ApiService,
+        { provide: ErrorHandlerService, useValue: errorHandlerSpy },
+        { provide: ValidationService, useValue: validationServiceSpy }
+      ]
     });
+    
     service = TestBed.inject(ApiService);
     httpMock = TestBed.inject(HttpTestingController);
+    errorHandler = TestBed.inject(ErrorHandlerService) as jasmine.SpyObj<ErrorHandlerService>;
+    validationService = TestBed.inject(ValidationService) as jasmine.SpyObj<ValidationService>;
+    
+    // Setup default spy behavior
+    validationService.validateApiRequest.and.returnValue([]);
+    errorHandler.createRetryableRequest.and.callFake((observable: any) => observable);
   });
 
   afterEach(() => {
-    httpMock.verify();
+    if (httpMock) {
+      httpMock.verify();
+    }
   });
 
   it('should be created', () => {

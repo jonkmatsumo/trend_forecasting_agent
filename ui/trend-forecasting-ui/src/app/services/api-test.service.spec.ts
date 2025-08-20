@@ -1,6 +1,5 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
 import { ApiTestService, ApiTestSuite, ApiTestResult } from './api-test.service';
 import { environment } from '../../environments/environment';
 
@@ -12,8 +11,7 @@ describe('ApiTestService', () => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [
-        ApiTestService,
-        provideZonelessChangeDetection()
+        ApiTestService
       ]
     });
     service = TestBed.inject(ApiTestService);
@@ -21,7 +19,9 @@ describe('ApiTestService', () => {
   });
 
   afterEach(() => {
-    httpMock.verify();
+    if (httpMock) {
+      httpMock.verify();
+    }
   });
 
   it('should be created', () => {

@@ -32,7 +32,9 @@ describe('AgentService', () => {
   });
 
   afterEach(() => {
-    httpMock.verify();
+    if (httpMock) {
+      httpMock.verify();
+    }
   });
 
   it('should be created', () => {
